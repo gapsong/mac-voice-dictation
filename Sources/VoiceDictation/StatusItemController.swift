@@ -117,13 +117,25 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private func hotkeyMenu() -> NSMenuItem {
         let parent = NSMenuItem(title: "Hotkey: \(controller.config.hotkey.displayName)", action: nil, keyEquivalent: "")
         let submenu = NSMenu()
-        for preset in HotkeyConfig.presets {
+        for (index, preset) in HotkeyConfig.presets.enumerated() {
             let item = NSMenuItem(title: "Hold \(preset.displayName)", action: #selector(selectHotkey(_:)), keyEquivalent: "")
             item.target = self
-            item.representedObject = preset.keyCode
-            item.state = controller.config.hotkey.keyCode == preset.keyCode ? .on : .off
+            item.representedObject = index
+            item.state = controller.config.hotkey == preset ? .on : .off
             submenu.addItem(item)
         }
+
+        // First-run guidance for the default fn/Globe hotkey: without this the
+        // Globe key also fires emoji / input switching while dictating.
+        if case .modifierFlag = controller.config.hotkey.trigger {
+            submenu.addItem(.separator())
+            submenu.addItem(disabledItem("Set Globe key → \"Do Nothing\" so fn"))
+            submenu.addItem(disabledItem("doesn't also switch input / emoji:"))
+            let fix = NSMenuItem(title: "Open Keyboard Settings...", action: #selector(openKeyboardSettings), keyEquivalent: "")
+            fix.target = self
+            submenu.addItem(fix)
+        }
+
         parent.submenu = submenu
         return parent
     }
@@ -171,8 +183,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     @objc private func selectHotkey(_ sender: NSMenuItem) {
-        guard let keyCode = sender.representedObject as? UInt16,
-              let preset = HotkeyConfig.presets.first(where: { $0.keyCode == keyCode }) else { return }
+        guard let index = sender.representedObject as? Int,
+              HotkeyConfig.presets.indices.contains(index) else { return }
+        let preset = HotkeyConfig.presets[index]
         controller.updateConfig { $0.hotkey = preset }
         hotkeyMonitor.update(hotkey: preset)
     }
@@ -181,6 +194,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let desired = !controller.config.launchAtLogin
         let ok = LaunchAtLogin.set(desired)
         controller.updateConfig { $0.launchAtLogin = ok ? desired : LaunchAtLogin.isEnabled }
+    }
+
+    @objc private func openKeyboardSettings() {
+        Permissions.openKeyboardSettings()
     }
 
     @objc private func fixMicrophone() {

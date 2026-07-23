@@ -48,6 +48,16 @@ Real server: `https://gpuserver.beaver-brotula.ts.net:9443` (HTTPS reverse proxy
 ## Architecture
 
 - `Sources/DictationCore/` - no AppKit, headless-unit-testable: `WavEncoder`, `WhisperClient`/`WhisperRequestFactory`, `WhisperModels`, `HostTrustDelegate`, `AppConfig`/`ConfigStore`.
-- `Sources/VoiceDictation/` - AppKit app: `AudioCapture` (AVAudioEngine → 16 kHz mono Int16 via `AVAudioConverter`), `HotkeyMonitor` (CGEventTap; modifiers arrive as `flagsChanged`, tracked by keycode since the flag bitmask doesn't distinguish left/right), `TextInserter` (pasteboard + Cmd+V + restore prior clipboard), `Permissions`, `LaunchAtLogin` (`SMAppService`, macOS 13+), `DictationController` (orchestration), `StatusItemController` (menu), `AppDelegate`, `main.swift`.
+- `Sources/VoiceDictation/` - AppKit app: `AudioCapture` (AVAudioEngine → 16 kHz mono Int16 via `AVAudioConverter`), `HotkeyMonitor` (CGEventTap; dispatches on `HotkeyTrigger`), `TextInserter` (pasteboard + Cmd+V + restore prior clipboard), `Permissions`, `LaunchAtLogin` (`SMAppService`, macOS 13+), `DictationController` (orchestration), `StatusItemController` (menu), `AppDelegate`, `main.swift`.
 
-Config (`AppConfig`) persists as one JSON blob in `UserDefaults`: server URL, hotkey, language, launch-at-login. Default hotkey is **Right Option** (keyCode 61) - reliably capturable via a global tap, unlike fn/Globe.
+Config (`AppConfig`) persists as one JSON blob in `UserDefaults`: server URL, hotkey, language, launch-at-login.
+
+### Hotkey model (`HotkeyTrigger`)
+
+The default hotkey is **fn / Globe**, and it drives the trigger abstraction:
+
+- `.modifierFlag(mask:)` - fn/Globe. fn is NOT reliably a key code; the system reports it as the `.maskSecondaryFn` (`0x800000`, NSEvent `.function`) modifier *flag*. `HotkeyMonitor` watches the flag's rising/falling edge on `flagsChanged`, so unrelated flag changes (e.g. Shift pressed while fn is held) are ignored.
+- `.modifierKey(keyCode:)` - Right/Left Option, Right Command/Control. These share a flag bit with their sibling, so they're matched by key code and toggled press/release on `flagsChanged`.
+- `.regularKey(keyCode:)` - a normal key via `keyDown`/`keyUp`.
+
+**Globe-key gotcha:** with fn as the hotkey the user must set System Settings → Keyboard → "Press Globe key to" → "Do Nothing", otherwise fn also fires emoji / input-source switching while dictating (and macOS may swallow the fn `flagsChanged` event). The app surfaces this as a hint in the Hotkey submenu (opens the Keyboard pane) and the README documents it. Right Option remains a selectable fallback that needs no such setting.

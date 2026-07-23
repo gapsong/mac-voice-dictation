@@ -1,35 +1,61 @@
 import Foundation
 
-/// A capturable hotkey. Modifier keys (Right Option and friends) arrive as
-/// `flagsChanged` events and are tracked by key code; regular keys arrive as
-/// key up/down. `isModifier` tells the event-tap layer which stream to watch.
+/// How a hold-to-talk key is observed by the global event tap.
+///
+/// The fn/Globe key is special: it is not reliably identified by a virtual key
+/// code, but the system reports it as the `.maskSecondaryFn` (NSEvent
+/// `.function`) modifier *flag* on `flagsChanged` events. Left/right modifiers
+/// like Right Option, by contrast, share a flag bit with their sibling and so
+/// must be told apart by key code. Regular keys arrive via key up/down.
+public enum HotkeyTrigger: Codable, Equatable, Sendable {
+    /// A `CGEventFlags` modifier bit observed on `flagsChanged` (e.g. fn/Globe
+    /// via `.maskSecondaryFn` = `0x800000`). Detected by the flag's rising and
+    /// falling edge, since the flag - not a key code - identifies the key.
+    case modifierFlag(mask: UInt64)
+    /// A modifier key identified by virtual key code, observed on
+    /// `flagsChanged` (e.g. Right Option, whose flag bit does not distinguish
+    /// side).
+    case modifierKey(keyCode: UInt16)
+    /// A regular key observed via `keyDown`/`keyUp`.
+    case regularKey(keyCode: UInt16)
+}
+
+/// A capturable hold-to-talk hotkey: how to detect it, plus a display label.
 public struct HotkeyConfig: Codable, Equatable, Sendable {
-    /// Virtual key code (CGKeyCode / kVK_*).
-    public var keyCode: UInt16
-    /// Whether this key is a modifier (observed via `flagsChanged`).
-    public var isModifier: Bool
+    public var trigger: HotkeyTrigger
     /// Human-readable label for the menu.
     public var displayName: String
 
-    public init(keyCode: UInt16, isModifier: Bool, displayName: String) {
-        self.keyCode = keyCode
-        self.isModifier = isModifier
+    public init(trigger: HotkeyTrigger, displayName: String) {
+        self.trigger = trigger
         self.displayName = displayName
     }
 
-    /// Default hotkey: hold Right Option (kVK_RightOption = 61). Reliably
-    /// capturable via a global event tap, unlike fn/Globe.
+    /// `CGEventFlags.maskSecondaryFn` raw value - the fn/Globe modifier bit.
+    public static let fnFlagMask: UInt64 = 0x800000
+
+    /// Default hotkey: hold fn/Globe. Detected via the `.maskSecondaryFn`
+    /// modifier flag on `flagsChanged`.
+    ///
+    /// Note: the user should set System Settings > Keyboard > "Press Globe key
+    /// to" -> "Do Nothing" so fn does not also trigger emoji / input switching
+    /// while dictating.
+    public static let fnGlobe = HotkeyConfig(
+        trigger: .modifierFlag(mask: fnFlagMask), displayName: "Fn / Globe"
+    )
+
+    /// Hold Right Option (kVK_RightOption = 61).
     public static let rightOption = HotkeyConfig(
-        keyCode: 61, isModifier: true, displayName: "Right Option"
+        trigger: .modifierKey(keyCode: 61), displayName: "Right Option"
     )
 
     /// A small menu of alternative hold-to-talk keys the user can pick from.
     public static let presets: [HotkeyConfig] = [
+        .fnGlobe,
         .rightOption,
-        HotkeyConfig(keyCode: 58, isModifier: true, displayName: "Left Option"),
-        HotkeyConfig(keyCode: 54, isModifier: true, displayName: "Right Command"),
-        HotkeyConfig(keyCode: 62, isModifier: true, displayName: "Right Control"),
-        HotkeyConfig(keyCode: 63, isModifier: true, displayName: "Fn / Globe"),
+        HotkeyConfig(trigger: .modifierKey(keyCode: 58), displayName: "Left Option"),
+        HotkeyConfig(trigger: .modifierKey(keyCode: 54), displayName: "Right Command"),
+        HotkeyConfig(trigger: .modifierKey(keyCode: 62), displayName: "Right Control"),
     ]
 }
 
@@ -59,7 +85,7 @@ public struct AppConfig: Codable, Equatable, Sendable {
     public static let `default` = AppConfig(
         serverBaseURLString: defaultServerURL,
         language: .de,
-        hotkey: .rightOption,
+        hotkey: .fnGlobe,
         launchAtLogin: false
     )
 

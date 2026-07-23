@@ -8,7 +8,7 @@ This is the Mac counterpart of the BikeOffice Android dictation, reusing the sam
 ## What it does
 
 - Lives in the menu bar only (no Dock icon). The status icon reflects state: idle, recording, transcribing, inserting, error, or needs-permission.
-- **Hold-to-talk**: hold the hotkey (default **Right Option**) to record, release to transcribe and insert. A short debounce ignores accidental taps.
+- **Hold-to-talk**: hold the hotkey (default **fn / Globe**) to record, release to transcribe and insert. A short debounce ignores accidental taps. Right Option and other modifiers are selectable fallbacks.
 - On hotkey-down it proactively fires `POST /start` so the (asleep-by-default) model warms while you are still speaking.
 - Inserts text by putting it on the pasteboard, synthesizing **Cmd+V** into the focused app, then **restoring the previous pasteboard contents**.
 - Server URL, hotkey, language (`de` default, plus `en`/`auto`), and launch-at-login are configurable from the menu and persist across restarts.
@@ -49,11 +49,19 @@ The app needs **two** macOS permissions. The menu shows a clear ⚠ item for whi
 
 > Because the app is ad-hoc signed with a stable bundle identifier, macOS remembers these grants across rebuilds instead of re-prompting each launch.
 
+### Free up the Globe key (required for the default hotkey)
+
+The default hotkey is **fn / Globe**. By default macOS uses that key to show the emoji picker or switch input sources, which would fire every time you dictate. Turn that off once:
+
+**System Settings → Keyboard → "Press 🌐 Globe key to" → "Do Nothing".**
+
+After that, holding fn/Globe cleanly triggers push-to-talk and nothing else. (If you'd rather keep the Globe key's system behavior, pick a different hold key from the menu's **Hotkey** submenu - Right Option is a solid fallback.)
+
 ## Usage
 
-1. Launch the app and grant both permissions.
+1. Launch the app and grant both permissions, and set "Press Globe key to → Do Nothing" (see above).
 2. Focus any text field in any app.
-3. Hold **Right Option**, speak, and release. The transcription is pasted at the cursor.
+3. Hold **fn / Globe**, speak, and release. The transcription is pasted at the cursor.
 4. Adjust the hotkey, language, server URL, and launch-at-login from the menu-bar icon.
 5. "Check Server" runs a `/health` probe and shows the server's state (it boots asleep by design).
 
@@ -87,9 +95,9 @@ Handled failure modes (visible status, never a crash): HTTP 502 (backend down), 
 The mic / global-hotkey / paste path cannot be exercised headlessly. On a real Mac session:
 
 1. `Scripts/build-app.sh && open build/VoiceDictation.app`.
-2. Grant Microphone (prompt) and Accessibility (System Settings), confirm the menu ⚠ items clear.
+2. Grant Microphone (prompt) and Accessibility (System Settings), confirm the menu ⚠ items clear. Set "Press Globe key to → Do Nothing".
 3. Ensure Tailscale is connected; "Check Server" shows `sleeping` or `ready`.
-4. Focus a text field, hold Right Option, speak a German phrase, release → text is pasted.
+4. Focus a text field, hold fn/Globe, speak a German phrase, release → text is pasted.
 5. Copy something to the clipboard first, dictate, then paste (Cmd+V) → confirm your original clipboard is back.
 6. Change hotkey/language/server URL/launch-at-login in the menu, quit, relaunch → settings persist.
 7. Disconnect Tailscale and dictate → the menu shows "Server unreachable", no crash.

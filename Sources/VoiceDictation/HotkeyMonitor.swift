@@ -107,17 +107,33 @@ final class HotkeyMonitor {
 
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
 
-        if hotkey.isModifier {
-            guard type == .flagsChanged, keyCode == hotkey.keyCode else { return }
-            // For a modifier the same key code toggles: a flagsChanged where
-            // the key is now down starts the press, the next one ends it.
+        switch hotkey.trigger {
+        case .modifierFlag(let mask):
+            // fn/Globe and similar: identified by a modifier flag, not a key
+            // code. Detect the rising/falling edge of that flag so extra
+            // flagsChanged events (e.g. Shift pressed while fn is held) are
+            // ignored.
+            guard type == .flagsChanged else { return }
+            let isSet = (event.flags.rawValue & mask) != 0
+            if isSet, !isHeld {
+                begin()
+            } else if !isSet, isHeld {
+                end()
+            }
+
+        case .modifierKey(let code):
+            // Left/right modifiers share a flag bit, so match the key code and
+            // toggle: the first flagsChanged for that code is the press, the
+            // next is the release.
+            guard type == .flagsChanged, keyCode == code else { return }
             if !isHeld {
                 begin()
             } else {
                 end()
             }
-        } else {
-            guard keyCode == hotkey.keyCode else { return }
+
+        case .regularKey(let code):
+            guard keyCode == code else { return }
             if type == .keyDown, !isHeld {
                 begin()
             } else if type == .keyUp, isHeld {

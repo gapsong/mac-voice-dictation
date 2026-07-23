@@ -49,4 +49,12 @@ enum Permissions {
         let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")!
         NSWorkspace.shared.open(url)
     }
+
+    /// Opens System Settings at the Keyboard pane, where the user can set
+    /// "Press Globe key to" -> "Do Nothing" so fn does not also trigger emoji /
+    /// input switching while it is used as the dictation hotkey.
+    static func openKeyboardSettings() {
+        let url = URL(string: "x-apple.systempreferences:com.apple.preference.keyboard")!
+        NSWorkspace.shared.open(url)
+    }
 }

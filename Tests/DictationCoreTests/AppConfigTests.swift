@@ -8,13 +8,23 @@ import Foundation
         let config = AppConfig.default
         #expect(config.serverBaseURLString == "https://gpuserver.beaver-brotula.ts.net:9443")
         #expect(config.language == .de)
-        #expect(config.hotkey == .rightOption)
+        #expect(config.hotkey == .fnGlobe)
         #expect(config.launchAtLogin == false)
     }
 
-    @Test func defaultHotkeyIsRightOption() {
-        #expect(HotkeyConfig.rightOption.keyCode == 61)
-        #expect(HotkeyConfig.rightOption.isModifier == true)
+    @Test func defaultHotkeyIsFnGlobeViaSecondaryFnFlag() {
+        // The default is fn/Globe, detected via the .maskSecondaryFn flag bit.
+        #expect(AppConfig.default.hotkey == .fnGlobe)
+        #expect(HotkeyConfig.fnGlobe.trigger == .modifierFlag(mask: 0x800000))
+        #expect(HotkeyConfig.fnFlagMask == 0x800000)
+    }
+
+    @Test func rightOptionRemainsSelectableFallback() {
+        #expect(HotkeyConfig.rightOption.trigger == .modifierKey(keyCode: 61))
+        #expect(HotkeyConfig.presets.contains(.fnGlobe))
+        #expect(HotkeyConfig.presets.contains(.rightOption))
+        // fn/Globe is offered first as the primary default.
+        #expect(HotkeyConfig.presets.first == .fnGlobe)
     }
 
     @Test func serverBaseURLParsesValid() {
@@ -43,7 +53,7 @@ import Foundation
         config.language = .en
         config.launchAtLogin = true
         config.serverBaseURLString = "https://example.test:9443"
-        config.hotkey = HotkeyConfig(keyCode: 58, isModifier: true, displayName: "Left Option")
+        config.hotkey = HotkeyConfig(trigger: .modifierKey(keyCode: 58), displayName: "Left Option")
         store.save(config)
 
         // A brand-new store instance reads the persisted value.
