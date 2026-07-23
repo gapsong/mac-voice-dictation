@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>VoiceDictation</string>
+    <key>CFBundleDisplayName</key>
+    <string>Voice Dictation</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.firstmate.VoiceDictation</string>
+    <key>CFBundleExecutable</key>
+    <string>VoiceDictation</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+
+    <!-- Menu-bar-only: no Dock icon, no main window. -->
+    <key>LSUIElement</key>
+    <true/>
+
+    <!-- Microphone permission prompt copy (required for AVAudioEngine input). -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Voice Dictation records your microphone while you hold the push-to-talk hotkey, then sends that audio to the whisper server for transcription.</string>
+
+    <!-- Narrow ATS exception: the whisper reverse proxy presents a self-signed
+         certificate. We still pin the trust exception in code to this host via a
+         scoped URLSession delegate; this entry only relaxes ATS for that host so
+         the connection is attempted at all. -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSExceptionDomains</key>
+        <dict>
+            <key>gpuserver.beaver-brotula.ts.net</key>
+            <dict>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+                <key>NSIncludesSubdomains</key>
+                <false/>
+            </dict>
+        </dict>
+    </dict>
+</dict>
+</plist>
