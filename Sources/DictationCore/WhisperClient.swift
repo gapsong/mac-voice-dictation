@@ -49,6 +49,7 @@ public final class WhisperClient: Sendable {
 
     private let baseURL: URL
     private let session: URLSession
+    private let ownsSession: Bool
 
     /// - Parameters:
     ///   - baseURL: Server base, e.g. `https://gpuserver...:9443`.
@@ -58,6 +59,7 @@ public final class WhisperClient: Sendable {
         self.baseURL = baseURL
         if let session {
             self.session = session
+            self.ownsSession = false
         } else {
             let config = URLSessionConfiguration.ephemeral
             config.timeoutIntervalForRequest = 30
@@ -68,6 +70,13 @@ public final class WhisperClient: Sendable {
                 delegate: delegate,
                 delegateQueue: nil
             )
+            self.ownsSession = true
+        }
+    }
+
+    deinit {
+        if ownsSession {
+            session.finishTasksAndInvalidate()
         }
     }
 
@@ -117,8 +126,8 @@ public final class WhisperClient: Sendable {
         guard let http = response as? HTTPURLResponse else {
             throw WhisperError.decoding
         }
-        // A transcribe before the model is ever woken fails server-side; treat
-        // 503 (and a 500 that decodes to a not-ready shape) as retryable.
+        // A transcribe before the model is ever woken fails server-side: map
+        // 502 to backendDown and 503 to notReady (the retryable case).
         if http.statusCode == 502 { throw WhisperError.backendDown }
         if http.statusCode == 503 { throw WhisperError.notReady }
         guard (200..<300).contains(http.statusCode) else {
