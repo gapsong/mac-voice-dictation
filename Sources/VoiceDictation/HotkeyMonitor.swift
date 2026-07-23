@@ -4,11 +4,13 @@ import DictationCore
 
 /// Global hold-to-talk hotkey via a CGEventTap.
 ///
-/// Modifier keys (the default Right Option) arrive as `flagsChanged` events;
-/// regular keys arrive as `keyDown`/`keyUp`. For a modifier we compare the
-/// event's key code to detect the specific left/right variant, since the flag
-/// bitmask alone does not distinguish sides. A short debounce suppresses an
-/// accidental tap so it does not fire an empty request.
+/// Handles the three `HotkeyTrigger` shapes. The default fn/Globe key is a
+/// modifier *flag* (`.maskSecondaryFn`): it has no reliable key code, so it is
+/// detected by the rising/falling edge of that flag on `flagsChanged`. Other
+/// modifiers like Right Option arrive on `flagsChanged` too, but share a flag
+/// bit with their sibling, so we compare the event's key code to tell the
+/// left/right variant apart. Regular keys arrive via `keyDown`/`keyUp`. A short
+/// debounce suppresses an accidental tap so it does not fire an empty request.
 ///
 /// Requires Accessibility permission - `CGEvent.tapCreate` returns `nil`
 /// without it.
