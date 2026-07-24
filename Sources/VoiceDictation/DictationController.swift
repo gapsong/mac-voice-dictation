@@ -92,7 +92,6 @@ final class DictationController {
             return
         }
 
-        status = .transcribing
         let client = self.client
         let language = config.language
 
@@ -102,12 +101,14 @@ final class DictationController {
             // The model may still be loading from the /start we fired on
             // hotkey-down; sending audio too early makes the server 500. Wait
             // (bounded) for readiness, surfacing "Warming up server..." only if
-            // we actually have to wait.
+            // we actually have to wait. Choose the first post-recording status
+            // from the readiness result so a cold server never flashes
+            // "Transcribing..." before "Warming up...".
             if await !client.isReadyNow() {
                 self.status = .warmingUp
                 await client.waitUntilReady()
-                self.status = .transcribing
             }
+            self.status = .transcribing
 
             do {
                 let response = try await client.transcribe(wavData: wav, language: language)
