@@ -16,10 +16,19 @@ final class DictationController {
     private let audio = AudioCapture()
     private var client: WhisperClient
 
-    /// Notifies observers (the status item) whenever the status changes.
-    var onStatusChange: ((AppStatus) -> Void)?
+    /// Fan-out of status changes to every UI surface that reflects it: the
+    /// menu-bar icon, the on-screen overlay, and the settings window. A list
+    /// (not a single closure) so all three stay in sync off one state model.
+    private var statusObservers: [(AppStatus) -> Void] = []
     private(set) var status: AppStatus = .idle {
-        didSet { onStatusChange?(status) }
+        didSet { statusObservers.forEach { $0(status) } }
+    }
+
+    /// Registers an observer for status changes and immediately delivers the
+    /// current status so the caller can render its initial state.
+    func observeStatus(_ observer: @escaping (AppStatus) -> Void) {
+        statusObservers.append(observer)
+        observer(status)
     }
 
     private var transcribeTask: Task<Void, Never>?

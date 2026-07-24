@@ -1,15 +1,19 @@
 import AppKit
 import DictationCore
 
-/// Wires the app together at launch: config, controller, global hotkey, and the
-/// menu-bar status item. Also drives first-run permission requests and re-arms
-/// the event tap once Accessibility is granted.
+/// Wires the app together at launch: config, controller, global hotkey, the
+/// menu-bar status item, the on-screen overlay, and the status/settings window.
+/// Also drives first-run permission requests and re-arms the event tap once
+/// Accessibility is granted.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var controller: DictationController!
     private var hotkeyMonitor: HotkeyMonitor!
+    private var actions: DictationActions!
     private var statusItemController: StatusItemController!
+    private var overlay: OverlayController!
+    private var settingsWindow: SettingsWindowController!
     private var accessibilityPollTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -24,15 +28,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.controller.endRecording(committed: committed)
         }
 
+        actions = DictationActions(controller: controller, hotkeyMonitor: hotkeyMonitor)
+
+        // On-screen HUD: presence and recording feedback that never depends on
+        // the (notch-hideable) menu-bar icon.
+        overlay = OverlayController()
+        controller.observeStatus { [weak self] status in
+            self?.overlay.apply(status: status)
+        }
+
+        settingsWindow = SettingsWindowController(
+            controller: controller,
+            actions: actions,
+            onClose: { [weak self] in self?.returnToAccessory() }
+        )
+
         statusItemController = StatusItemController(
             controller: controller,
-            hotkeyMonitor: hotkeyMonitor
+            actions: actions,
+            openSettings: { [weak self] in self?.showSettingsWindow() }
         )
 
         // Keep the persisted launch-at-login preference in sync with the OS.
         _ = LaunchAtLogin.set(controller.config.launchAtLogin)
 
         requestPermissionsAndArm()
+        surfacePresenceOnFirstLaunch()
     }
 
     /// Requests Microphone up front and arms the hotkey tap. Because the tap
@@ -45,6 +66,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             controller.beginNeedsAccessibility()
             Permissions.promptAccessibility()
             startAccessibilityPolling()
+        }
+    }
+
+    /// First-launch presence: if a permission is missing, open the status window
+    /// to guide the user; otherwise flash a brief non-intrusive greeting overlay
+    /// so the user knows the (icon-only) app actually started.
+    private func surfacePresenceOnFirstLaunch() {
+        if !Permissions.hasMicrophone || !Permissions.hasAccessibility {
+            showSettingsWindow()
+        } else {
+            overlay.showBanner("Voice Dictation läuft - halte fn zum Diktieren", duration: 2.0)
         }
     }
 
@@ -66,6 +98,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+    }
+
+    // MARK: - Status/settings window
+
+    /// The dependable entry point when the menu-bar icon is hidden. Briefly
+    /// becomes a `.regular` app so the window can come to the front, then drops
+    /// back to `.accessory` when it closes (no permanent Dock icon).
+    private func showSettingsWindow() {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        settingsWindow.show()
+    }
+
+    private func returnToAccessory() {
+        NSApp.setActivationPolicy(.accessory)
+    }
+
+    /// Re-launching the app (or clicking it in the Dock/Finder) while it is
+    /// already running opens the status window - the "click the app again to get
+    /// its window" behaviour that makes the app reachable past the notch.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        showSettingsWindow()
+        return true
     }
 
     func applicationWillTerminate(_ notification: Notification) {

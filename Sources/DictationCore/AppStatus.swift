@@ -1,8 +1,9 @@
 import Foundation
 
-/// High-level state the menu-bar icon reflects. Drives both the status-item
-/// symbol and the menu's status line.
-enum AppStatus: Equatable {
+/// High-level state the app reflects. Drives the menu-bar icon, the on-screen
+/// overlay, and the status/settings window. Pure Foundation so the overlay
+/// presentation logic can be unit-tested without AppKit.
+public enum AppStatus: Equatable, Sendable {
     case idle
     case recording
     case transcribing
@@ -12,7 +13,7 @@ enum AppStatus: Equatable {
     case needsPermission(String)
 
     /// SF Symbol name for the status item.
-    var symbolName: String {
+    public var symbolName: String {
         switch self {
         case .idle: return "mic"
         case .recording: return "mic.fill"
@@ -23,8 +24,8 @@ enum AppStatus: Equatable {
         }
     }
 
-    /// Short line shown at the top of the menu.
-    var menuText: String {
+    /// Short line shown at the top of the menu and in the settings window.
+    public var menuText: String {
         switch self {
         case .idle: return "Ready"
         case .recording: return "Recording..."

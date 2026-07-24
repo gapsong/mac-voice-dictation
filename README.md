@@ -8,6 +8,8 @@ This is the Mac counterpart of the BikeOffice Android dictation, reusing the sam
 ## What it does
 
 - Lives in the menu bar only (no Dock icon). The status icon reflects state: idle, recording, transcribing, inserting, error, or needs-permission.
+- **On-screen recording overlay**: a floating HUD appears at the bottom-centre of your screen while recording / transcribing / inserting, so feedback never depends on the menu-bar icon (which the notch on 15" MacBook Airs can hide). It shows a pulsing red dot while recording and fades out shortly after you finish. See [On-screen feedback](#on-screen-feedback-and-reaching-the-app).
+- **Status/settings window**: a normal window with live status, both permission states (with Grant buttons), a server check, and every setting the menu has. **Re-open the app while it is already running (click it in Finder/Dock, or `open build/VoiceDictation.app` again) to bring this window up** - a dependable way in even when the notch hides the menu-bar icon.
 - **Hold-to-talk**: hold the hotkey (default **fn / Globe**) to record, release to transcribe and insert. A short debounce ignores accidental taps. Right Option and other modifiers are selectable fallbacks.
 - On hotkey-down it proactively fires `POST /start` so the (asleep-by-default) model warms while you are still speaking.
 - Inserts text by putting it on the pasteboard, synthesizing **Cmd+V** into the focused app, then **restoring the previous pasteboard contents**.
@@ -57,6 +59,13 @@ The default hotkey is **fn / Globe**. By default macOS uses that key to show the
 
 After that, holding fn/Globe cleanly triggers push-to-talk and nothing else. (If you'd rather keep the Globe key's system behavior, pick a different hold key from the menu's **Hotkey** submenu - Right Option is a solid fallback.)
 
+## On-screen feedback and reaching the app
+
+Because the app is menu-bar-only, the notch on a 15" MacBook Air (and a crowded menu bar generally) can hide the status icon - leaving you unable to tell the app is running, see when it is recording, or reach its settings. Two features solve this without depending on the icon:
+
+- **Recording overlay.** A small floating panel appears bottom-centre on the screen under your mouse whenever the app is active: "🎙 Aufnahme läuft…" with a pulsing red dot while recording, "✍️ Transkribiere…", then "Einfügen…", fading out on idle. It also surfaces "⚠ Mikrofon-Recht fehlt" / "⚠ Server nicht erreichbar" style warnings. The overlay is deliberately **non-activating** - it never takes focus, so your Cmd+V paste still lands in the app you were typing into.
+- **Re-open for the window.** Launching the app again while it is already running opens the **status/settings window** (standard "click the app to get its window" behaviour). From there you can see the current status, grant either permission, check the server, and change the hotkey / language / server URL / launch-at-login. On first launch the app also surfaces itself: it opens this window if a permission is missing, otherwise flashes a brief "Voice Dictation läuft" greeting overlay so you know it started.
+
 ## Usage
 
 1. Launch the app and grant both permissions, and set "Press Globe key to → Do Nothing" (see above).
@@ -98,13 +107,15 @@ The mic / global-hotkey / paste path cannot be exercised headlessly. On a real M
 2. Grant Microphone (prompt) and Accessibility (System Settings), confirm the menu ⚠ items clear. Set "Press Globe key to → Do Nothing".
 3. Ensure Tailscale is connected; "Check Server" shows `sleeping` or `ready`.
 4. Focus a text field, hold fn/Globe, speak a German phrase, release → text is pasted.
-5. Copy something to the clipboard first, dictate, then paste (Cmd+V) → confirm your original clipboard is back.
-6. Change hotkey/language/server URL/launch-at-login in the menu, quit, relaunch → settings persist.
-7. Disconnect Tailscale and dictate → the menu shows "Server unreachable", no crash.
+5. **Overlay**: while holding fn/Globe, confirm the "🎙 Aufnahme läuft…" HUD appears bottom-centre with a pulsing red dot, then progresses to "✍️ Transkribiere…"/"Einfügen…" and fades out. Critically, confirm the **frontmost app does not change** when it appears and the text still pastes into your focused field (the overlay is non-activating).
+6. Copy something to the clipboard first, dictate, then paste (Cmd+V) → confirm your original clipboard is back.
+7. **Re-open window**: with the app already running, run `open build/VoiceDictation.app` again (or click it in Finder) → the status/settings window appears centred. Grant a permission from it and confirm the row flips to "✓ Granted"; close it and confirm no permanent Dock icon remains.
+8. Change hotkey/language/server URL/launch-at-login in the window or menu, quit, relaunch → settings persist.
+9. Disconnect Tailscale and dictate → the menu/overlay shows "Server unreachable", no crash.
 
 ## Architecture
 
 Clean module split so each layer is independently testable:
 
-- `Sources/DictationCore/` (no AppKit, headless-testable): `WavEncoder`, `WhisperClient` + `WhisperRequestFactory`, `WhisperModels`, `HostTrustDelegate`, `AppConfig` + `ConfigStore`.
-- `Sources/VoiceDictation/` (AppKit app): `AudioCapture` (AVAudioEngine → 16 kHz mono Int16), `HotkeyMonitor` (CGEventTap), `TextInserter` (pasteboard + Cmd+V + restore), `Permissions`, `LaunchAtLogin` (SMAppService), `DictationController` (orchestration), `StatusItemController` (menu), `AppDelegate`.
+- `Sources/DictationCore/` (no AppKit, headless-testable): `WavEncoder`, `WhisperClient` + `WhisperRequestFactory`, `WhisperModels`, `HostTrustDelegate`, `AppConfig` + `ConfigStore`, `AppStatus`, and `OverlayViewModel` (maps `AppStatus` → overlay label/accent/pulse + the auto-hide timing policy, unit-tested).
+- `Sources/VoiceDictation/` (AppKit app): `AudioCapture` (AVAudioEngine → 16 kHz mono Int16), `HotkeyMonitor` (CGEventTap), `TextInserter` (pasteboard + Cmd+V + restore), `Permissions`, `LaunchAtLogin` (SMAppService), `DictationController` (orchestration; fans status out to multiple observers), `DictationActions` (shared settings mutations), `StatusItemController` (menu), `OverlayController` (non-activating floating HUD), `SettingsWindowController` (status/settings window), `AppDelegate`.
