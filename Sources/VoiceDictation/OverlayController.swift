@@ -105,6 +105,13 @@ final class OverlayController {
         hideWorkItem = nil
         render(presentation)
         show()
+
+        // Terminal attention states (error / missing permission) are never
+        // driven back to idle by the controller, so dismiss them on a timer
+        // rather than let the banner ride over every Space indefinitely.
+        if let delay = OverlayViewModel.autoHideDelay(for: status) {
+            scheduleHide(after: delay)
+        }
     }
 
     /// Show a transient informational banner (e.g. the launch greeting) that is
@@ -124,13 +131,15 @@ final class OverlayController {
 
     private func render(_ presentation: OverlayViewModel.Presentation) {
         label.stringValue = presentation.label
+        // The dot is the accent surface for every state, not just recording: a
+        // static tinted dot for working/info/warning, a pulsing red one while
+        // recording. Without this the working/warning accents never appear.
+        dot.isHidden = false
+        dot.color = color(for: presentation.accent)
         if presentation.showsPulse {
-            dot.isHidden = false
-            dot.color = color(for: presentation.accent)
             dot.startPulsing()
         } else {
             dot.stopPulsing()
-            dot.isHidden = true
         }
         layoutToFit()
     }

@@ -88,4 +88,20 @@ import Foundation
     @Test func fadeDurationIsPositive() {
         #expect(OverlayViewModel.fadeDuration > 0)
     }
+
+    // MARK: - Auto-hide policy
+
+    @Test func attentionStatesSelfDismiss() {
+        #expect(OverlayViewModel.autoHideDelay(for: .error("Server unreachable")) == OverlayViewModel.attentionHideDelay)
+        #expect(OverlayViewModel.autoHideDelay(for: .needsPermission("Microphone")) == OverlayViewModel.attentionHideDelay)
+        #expect(OverlayViewModel.attentionHideDelay > 0)
+    }
+
+    @Test func transientAndActiveStatesDoNotSelfDismiss() {
+        #expect(OverlayViewModel.autoHideDelay(for: .recording) == nil)
+        #expect(OverlayViewModel.autoHideDelay(for: .warmingUp) == nil)
+        #expect(OverlayViewModel.autoHideDelay(for: .transcribing) == nil)
+        #expect(OverlayViewModel.autoHideDelay(for: .inserting) == nil)
+        #expect(OverlayViewModel.autoHideDelay(for: .idle) == nil)
+    }
 }

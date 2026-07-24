@@ -68,6 +68,25 @@ public enum OverlayViewModel {
     /// enough not to nag.
     public static let idleHideDelay: TimeInterval = 1.2
 
+    /// How long an attention banner (error / missing permission) stays before it
+    /// dismisses itself. The controller never auto-leaves these terminal states,
+    /// so without this the HUD - a floating panel that rides over every Space and
+    /// full-screen app - would linger indefinitely after a failure.
+    public static let attentionHideDelay: TimeInterval = 4.0
+
+    /// How long the overlay should stay before auto-dismissing for a given
+    /// status, or `nil` if it should remain until the next status change drives
+    /// it away. Only the terminal attention states self-dismiss; the transient
+    /// working states are always superseded by another status.
+    public static func autoHideDelay(for status: AppStatus) -> TimeInterval? {
+        switch status {
+        case .error, .needsPermission:
+            return attentionHideDelay
+        default:
+            return nil
+        }
+    }
+
     /// The fade-out animation duration once the linger delay elapses.
     public static let fadeDuration: TimeInterval = 0.35
 }
