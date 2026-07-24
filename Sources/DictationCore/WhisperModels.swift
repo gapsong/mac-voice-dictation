@@ -29,12 +29,22 @@ public enum WhisperServerState: String, Codable, Sendable {
 public struct HealthResponse: Codable, Equatable, Sendable {
     public let model: String?
     public let state: WhisperServerState
-    public let ready: Bool
+    /// The server sometimes omits `ready` and reports readiness via `state`
+    /// alone (e.g. `{"state":"ready"}`). Optional so decoding tolerates that;
+    /// use `isReady` rather than reading this directly.
+    public let ready: Bool?
 
-    public init(model: String?, state: WhisperServerState, ready: Bool) {
+    public init(model: String?, state: WhisperServerState, ready: Bool? = nil) {
         self.model = model
         self.state = state
         self.ready = ready
+    }
+
+    /// Whether the model is loaded and can transcribe. Trusts an explicit
+    /// `ready` flag when present, otherwise falls back to `state == .ready`, so
+    /// a `{"state":"ready"}` body without the flag is correctly treated as up.
+    public var isReady: Bool {
+        ready ?? (state == .ready)
     }
 }
 

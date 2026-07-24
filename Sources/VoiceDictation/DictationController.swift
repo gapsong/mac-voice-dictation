@@ -97,15 +97,27 @@ final class DictationController {
         let language = config.language
 
         transcribeTask = Task { [weak self] in
+            guard let self else { return }
+
+            // The model may still be loading from the /start we fired on
+            // hotkey-down; sending audio too early makes the server 500. Wait
+            // (bounded) for readiness, surfacing "Warming up server..." only if
+            // we actually have to wait.
+            if await !client.isReadyNow() {
+                self.status = .warmingUp
+                await client.waitUntilReady()
+                self.status = .transcribing
+            }
+
             do {
                 let response = try await client.transcribe(wavData: wav, language: language)
-                self?.handleTranscription(response.text)
+                self.handleTranscription(response.text)
             } catch let error as WhisperError {
-                self?.status = .error(error.userMessage)
-                self?.log.error("transcribe failed: \(error.userMessage)")
+                self.status = .error(error.userMessage)
+                self.log.error("transcribe failed: \(error.userMessage)")
             } catch {
-                self?.status = .error("Transcription failed")
-                self?.log.error("transcribe failed: \(error.localizedDescription)")
+                self.status = .error("Transcription failed")
+                self.log.error("transcribe failed: \(error.localizedDescription)")
             }
         }
     }
@@ -138,7 +150,7 @@ final class DictationController {
     func checkServer() async -> String {
         do {
             let health = try await client.health()
-            return "Server: \(health.state.rawValue)\(health.ready ? " (ready)" : "") - \(health.model ?? "?")"
+            return "Server: \(health.state.rawValue)\(health.isReady ? " (ready)" : "") - \(health.model ?? "?")"
         } catch let error as WhisperError {
             return error.userMessage
         } catch {

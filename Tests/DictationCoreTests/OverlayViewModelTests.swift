@@ -12,6 +12,7 @@ import Foundation
 
     @Test func activeAndAttentionStatesAreVisible() {
         #expect(OverlayViewModel.isVisible(for: .recording))
+        #expect(OverlayViewModel.isVisible(for: .warmingUp))
         #expect(OverlayViewModel.isVisible(for: .transcribing))
         #expect(OverlayViewModel.isVisible(for: .inserting))
         #expect(OverlayViewModel.isVisible(for: .error("x")))
@@ -28,49 +29,51 @@ import Foundation
         let p = OverlayViewModel.presentation(for: .recording)
         #expect(p?.accent == .recording)
         #expect(p?.showsPulse == true)
-        #expect(p?.label.contains("Aufnahme") == true)
+        #expect(p?.label.contains("Recording") == true)
     }
 
     @Test func transcribingIsWorkingWithoutPulse() {
         let p = OverlayViewModel.presentation(for: .transcribing)
         #expect(p?.accent == .working)
         #expect(p?.showsPulse == false)
-        #expect(p?.label.contains("Transkribiere") == true)
+        #expect(p?.label.contains("Transcribing") == true)
     }
 
     @Test func insertingIsWorkingWithoutPulse() {
         let p = OverlayViewModel.presentation(for: .inserting)
         #expect(p?.accent == .working)
         #expect(p?.showsPulse == false)
-        #expect(p?.label.contains("Einfügen") == true)
+        #expect(p?.label.contains("Inserting") == true)
     }
 
-    // MARK: - Permission / error copy
+    @Test func warmingUpIsWorkingWithoutPulse() {
+        let p = OverlayViewModel.presentation(for: .warmingUp)
+        #expect(p?.accent == .working)
+        #expect(p?.showsPulse == false)
+        #expect(p?.label.contains("Warming up") == true)
+    }
 
-    @Test func microphonePermissionUsesGermanCopyWithWarningAccent() {
+    // MARK: - Permission / error copy (English, warning accent)
+
+    @Test func microphonePermissionUsesWarningAccent() {
         let p = OverlayViewModel.presentation(for: .needsPermission("Microphone"))
         #expect(p?.accent == .warning)
         #expect(p?.showsPulse == false)
-        #expect(p?.label == "⚠ Mikrofon-Recht fehlt")
+        #expect(p?.label == "⚠ Microphone permission required")
     }
 
-    @Test func accessibilityPermissionUsesGermanCopy() {
+    @Test func accessibilityPermissionCopy() {
         let p = OverlayViewModel.presentation(for: .needsPermission("Accessibility"))
-        #expect(p?.label == "⚠ Bedienungshilfen-Recht fehlt")
+        #expect(p?.label == "⚠ Accessibility permission required")
     }
 
-    @Test func unmappedPermissionFallsBackGracefully() {
-        let p = OverlayViewModel.presentation(for: .needsPermission("Camera"))
-        #expect(p?.label == "⚠ Camera-Recht fehlt")
-    }
-
-    @Test func knownServerErrorMapsToGerman() {
+    @Test func serverErrorShownWithWarningAccent() {
         let p = OverlayViewModel.presentation(for: .error("Server unreachable"))
         #expect(p?.accent == .warning)
-        #expect(p?.label == "⚠ Server nicht erreichbar")
+        #expect(p?.label == "⚠ Server unreachable")
     }
 
-    @Test func unmappedErrorFallsBackToRawMessage() {
+    @Test func errorLabelPrefixesRawMessage() {
         let p = OverlayViewModel.presentation(for: .error("weird backend thing"))
         #expect(p?.label == "⚠ weird backend thing")
     }

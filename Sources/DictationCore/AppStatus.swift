@@ -6,6 +6,9 @@ import Foundation
 public enum AppStatus: Equatable, Sendable {
     case idle
     case recording
+    /// The server is still loading the model after `/start`; we are waiting
+    /// before sending audio so the transcribe does not race the model.
+    case warmingUp
     case transcribing
     case inserting
     case error(String)
@@ -17,6 +20,7 @@ public enum AppStatus: Equatable, Sendable {
         switch self {
         case .idle: return "mic"
         case .recording: return "mic.fill"
+        case .warmingUp: return "hourglass"
         case .transcribing: return "waveform"
         case .inserting: return "text.cursor"
         case .error: return "exclamationmark.triangle"
@@ -29,6 +33,7 @@ public enum AppStatus: Equatable, Sendable {
         switch self {
         case .idle: return "Ready"
         case .recording: return "Recording..."
+        case .warmingUp: return "Warming up server..."
         case .transcribing: return "Transcribing..."
         case .inserting: return "Inserting..."
         case .error(let message): return "Error: \(message)"

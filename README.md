@@ -27,8 +27,20 @@ This is the Mac counterpart of the BikeOffice Android dictation, reusing the sam
 Scripts/build-app.sh
 ```
 
-This runs `swift build -c release`, assembles `build/VoiceDictation.app`, and ad-hoc code-signs it.
+This runs `swift build -c release`, assembles `build/VoiceDictation.app`, and code-signs it with a **stable self-signed identity** (see below).
 We use an SPM executable plus a bundling step (rather than an Xcode project) so the build is fully reproducible from the command line with only the Swift toolchain.
+
+### Stable signing so permissions survive rebuilds
+
+macOS records Microphone / Accessibility grants against the app's code-signing identity - specifically the *designated requirement*, which pins the signing certificate. Plain ad-hoc signing (`codesign --sign -`) has no stable certificate: every rebuild gets a fresh code hash, so macOS treats each reinstall as a brand-new app and **forgets the grants**, forcing you to re-approve permissions every time.
+
+To avoid that, `Scripts/build-app.sh` signs with a persistent self-signed code-signing identity:
+
+- On the **first** build it creates a self-signed cert named `VoiceDictation Self-Signed` in a small dedicated keychain (`~/Library/Keychains/voicedictation-signing.keychain-db`) with a known local passphrase, and authorises `codesign` to use it (`security set-key-partition-list`). This is **idempotent and prompt-free** - it never touches your login keychain, so it does not ask for your login password.
+- Every **subsequent** build finds and reuses that same identity, so the designated requirement stays constant and your permission grants persist across rebuilds.
+- If a signing identity cannot be created for any reason, the script **falls back to ad-hoc signing** with a warning; the app still runs, but you may need to re-grant permissions after an update.
+
+Only `Scripts/build-app.sh` signs. `swift build` / `swift test` produce only the linker's automatic ad-hoc signature (no keychain access), so day-to-day dev iterations never prompt.
 
 ## Run
 
@@ -49,7 +61,7 @@ The app needs **two** macOS permissions. The menu shows a clear ⚠ item for whi
 1. **Microphone** - to record audio (`AVAudioEngine`). Requested automatically on first launch; the system prompt uses the `NSMicrophoneUsageDescription` copy.
 2. **Accessibility** - required for *both* the global hotkey event tap and the synthetic Cmd+V paste. macOS does not prompt for this the same way; grant it in **System Settings → Privacy & Security → Accessibility** and enable **VoiceDictation**. The app opens this pane for you from the menu's "Grant Accessibility access" item, and arms the hotkey automatically once it is granted.
 
-> Because the app is ad-hoc signed with a stable bundle identifier, macOS remembers these grants across rebuilds instead of re-prompting each launch.
+> Because the app is signed with a **stable self-signed identity** (see [Stable signing](#stable-signing-so-permissions-survive-rebuilds)), macOS remembers these grants across rebuilds instead of re-prompting after each reinstall.
 
 ### Free up the Globe key (required for the default hotkey)
 
@@ -63,8 +75,8 @@ After that, holding fn/Globe cleanly triggers push-to-talk and nothing else. (If
 
 Because the app is menu-bar-only, the notch on a 15" MacBook Air (and a crowded menu bar generally) can hide the status icon - leaving you unable to tell the app is running, see when it is recording, or reach its settings. Two features solve this without depending on the icon:
 
-- **Recording overlay.** A small floating panel appears bottom-centre on the screen under your mouse whenever the app is active: "🎙 Aufnahme läuft…" with a pulsing red dot while recording, "✍️ Transkribiere…", then "Einfügen…", fading out on idle. It also surfaces "⚠ Mikrofon-Recht fehlt" / "⚠ Server nicht erreichbar" style warnings. The overlay is deliberately **non-activating** - it never takes focus, so your Cmd+V paste still lands in the app you were typing into.
-- **Re-open for the window.** Launching the app again while it is already running opens the **status/settings window** (standard "click the app to get its window" behaviour). From there you can see the current status, grant either permission, check the server, and change the hotkey / language / server URL / launch-at-login. On first launch the app also surfaces itself: it opens this window if a permission is missing, otherwise flashes a brief "Voice Dictation läuft" greeting overlay so you know it started.
+- **Recording overlay.** A small floating panel appears bottom-centre on the screen under your mouse whenever the app is active: "🎙 Recording…" with a pulsing red dot while recording, "⏳ Warming up server…" if the model is still loading, "✍️ Transcribing…", then "Inserting…", fading out on idle. It also surfaces "⚠ Microphone permission required" / "⚠ Server unreachable" style warnings. The overlay is deliberately **non-activating** - it never takes focus, so your Cmd+V paste still lands in the app you were typing into.
+- **Re-open for the window.** Launching the app again while it is already running opens the **status/settings window** (standard "click the app to get its window" behaviour). From there you can see the current status, grant either permission, check the server, and change the hotkey / language / server URL / launch-at-login. On first launch the app also surfaces itself: it opens this window if a permission is missing, otherwise flashes a brief "Voice Dictation is running" greeting overlay so you know it started.
 
 ## Usage
 
@@ -83,7 +95,8 @@ swift test
 Covers:
 - **WAV encoding** - a canonical 16 kHz / mono / 16-bit header plus correct little-endian sample data.
 - **Whisper client request shaping** - URL, method, `Content-Type: audio/wav`, and `X-Language` header for `/health`, `/start`, `/transcribe`.
-- **Client behavior** - 502 backend-down, empty-text, and retry-once-when-not-ready, exercised with a stub `URLProtocol`.
+- **Client behavior** - 502 backend-down, empty-text, retry-on-not-ready (503 **and** 500) with a bounded give-up, and `waitUntilReady` health-polling (ready-after-N-polls, timeout, and `{"state":"ready"}` without a `ready` flag), exercised with a stub `URLProtocol`.
+- **Overlay view-model** - `AppStatus` → label / accent / pulse mapping and the auto-hide timing policy.
 - **Config persistence** - round-trips through `UserDefaults`.
 - **Live `/health` smoke check** - when on the tailnet it validates the real TLS trust exception and response decoding against the server; off the tailnet it skips gracefully.
 
@@ -97,7 +110,7 @@ Base URL: `https://gpuserver.beaver-brotula.ts.net:9443` (HTTPS reverse proxy in
 | `/start` | POST | Wakes and loads the model (a few seconds) → `{"state":"ready","ready":true}`. Fired on hotkey-down. |
 | `/transcribe` | POST | `Content-Type: audio/wav`, body = mono/16-bit/16 kHz WAV, header `X-Language: de\|en\|auto` → `{"text","language","ms"}`. |
 
-Handled failure modes (visible status, never a crash): HTTP 502 (backend down), empty `text`, network/timeout/unreachable, and not-yet-ready after `/start` (retried once with a short backoff).
+Handled failure modes (visible status, never a crash): HTTP 502 (backend down), empty `text`, network/timeout/unreachable, and **not-yet-ready after `/start`**. The server boots asleep and takes a few seconds to load the model after `/start`; transcribing before then makes it return HTTP 500 ("NoneType has no attribute transcribe"). The app therefore polls `GET /health` until `state == ready` (bounded ~15s, showing "Warming up server…") before sending audio, and additionally retries `/transcribe` on 500/503 with exponential backoff as a backstop. Health decoding tolerates a `ready` field that is absent, treating `{"state":"ready"}` as ready.
 
 ## Manual end-to-end verification
 
@@ -107,7 +120,7 @@ The mic / global-hotkey / paste path cannot be exercised headlessly. On a real M
 2. Grant Microphone (prompt) and Accessibility (System Settings), confirm the menu ⚠ items clear. Set "Press Globe key to → Do Nothing".
 3. Ensure Tailscale is connected; "Check Server" shows `sleeping` or `ready`.
 4. Focus a text field, hold fn/Globe, speak a German phrase, release → text is pasted.
-5. **Overlay**: while holding fn/Globe, confirm the "🎙 Aufnahme läuft…" HUD appears bottom-centre with a pulsing red dot, then progresses to "✍️ Transkribiere…"/"Einfügen…" and fades out. Critically, confirm the **frontmost app does not change** when it appears and the text still pastes into your focused field (the overlay is non-activating).
+5. **Overlay**: while holding fn/Globe, confirm the "🎙 Recording…" HUD appears bottom-centre with a pulsing red dot, then progresses to "✍️ Transcribing…"/"Inserting…" (with "⏳ Warming up server…" in between if the model was still asleep) and fades out. Critically, confirm the **frontmost app does not change** when it appears and the text still pastes into your focused field (the overlay is non-activating).
 6. Copy something to the clipboard first, dictate, then paste (Cmd+V) → confirm your original clipboard is back.
 7. **Re-open window**: with the app already running, run `open build/VoiceDictation.app` again (or click it in Finder) → the status/settings window appears centred. Grant a permission from it and confirm the row flips to "✓ Granted"; close it and confirm no permanent Dock icon remains.
 8. Change hotkey/language/server URL/launch-at-login in the window or menu, quit, relaunch → settings persist.

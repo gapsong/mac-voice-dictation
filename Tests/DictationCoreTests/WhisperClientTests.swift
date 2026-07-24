@@ -51,3 +51,37 @@ import Foundation
         #expect(request.url?.absoluteString == "https://example.test:9443/api/health")
     }
 }
+
+@Suite struct HealthResponseTests {
+
+    @Test func explicitReadyFlagWins() throws {
+        let ready = try JSONDecoder().decode(
+            HealthResponse.self,
+            from: Data(#"{"model":"m","state":"ready","ready":true}"#.utf8)
+        )
+        #expect(ready.isReady == true)
+
+        let notReady = try JSONDecoder().decode(
+            HealthResponse.self,
+            from: Data(#"{"model":"m","state":"sleeping","ready":false}"#.utf8)
+        )
+        #expect(notReady.isReady == false)
+    }
+
+    @Test func missingReadyFieldFallsBackToState() throws {
+        // The server sometimes reports readiness via state alone; decoding must
+        // tolerate the absent flag and treat state==ready as ready.
+        let up = try JSONDecoder().decode(
+            HealthResponse.self,
+            from: Data(#"{"state":"ready"}"#.utf8)
+        )
+        #expect(up.ready == nil)
+        #expect(up.isReady == true)
+
+        let down = try JSONDecoder().decode(
+            HealthResponse.self,
+            from: Data(#"{"state":"sleeping"}"#.utf8)
+        )
+        #expect(down.isReady == false)
+    }
+}

@@ -76,7 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !Permissions.hasMicrophone || !Permissions.hasAccessibility {
             showSettingsWindow()
         } else {
-            overlay.showBanner("Voice Dictation läuft - halte fn zum Diktieren", duration: 2.0)
+            overlay.showBanner("Voice Dictation is running - hold fn to dictate", duration: 2.0)
         }
     }
 

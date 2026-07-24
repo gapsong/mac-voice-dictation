@@ -49,52 +49,25 @@ public enum OverlayViewModel {
         case .idle:
             return nil
         case .recording:
-            return Presentation(label: "🎙 Aufnahme läuft…", accent: .recording, showsPulse: true)
+            return Presentation(label: "🎙 Recording…", accent: .recording, showsPulse: true)
+        case .warmingUp:
+            return Presentation(label: "⏳ Warming up server…", accent: .working, showsPulse: false)
         case .transcribing:
-            return Presentation(label: "✍️ Transkribiere…", accent: .working, showsPulse: false)
+            return Presentation(label: "✍️ Transcribing…", accent: .working, showsPulse: false)
         case .inserting:
-            return Presentation(label: "Einfügen…", accent: .working, showsPulse: false)
+            return Presentation(label: "Inserting…", accent: .working, showsPulse: false)
         case .needsPermission(let what):
-            return Presentation(label: "⚠ \(germanPermission(what)) fehlt", accent: .warning, showsPulse: false)
+            return Presentation(label: "⚠ \(what) permission required", accent: .warning, showsPulse: false)
         case .error(let message):
-            return Presentation(label: "⚠ \(germanError(message))", accent: .warning, showsPulse: false)
+            return Presentation(label: "⚠ \(message)", accent: .warning, showsPulse: false)
         }
     }
 
     /// How long the overlay lingers on-screen after the app returns to idle
-    /// before it fades out. Long enough to register the final "Einfügen…", short
+    /// before it fades out. Long enough to register the final "Inserting…", short
     /// enough not to nag.
     public static let idleHideDelay: TimeInterval = 1.2
 
     /// The fade-out animation duration once the linger delay elapses.
     public static let fadeDuration: TimeInterval = 0.35
-
-    // MARK: - German copy
-
-    /// Maps the English permission identifiers used internally to the German
-    /// labels the user sees on the overlay.
-    private static func germanPermission(_ what: String) -> String {
-        switch what {
-        case "Microphone": return "Mikrofon-Recht"
-        case "Accessibility": return "Bedienungshilfen-Recht"
-        default: return "\(what)-Recht"
-        }
-    }
-
-    /// Maps the known English error messages from the whisper client to German
-    /// overlay copy, falling back to the raw message for anything unmapped.
-    private static func germanError(_ message: String) -> String {
-        switch message {
-        case "Server unreachable", "Server unreachable (on Tailscale?)":
-            return "Server nicht erreichbar"
-        case "Mic unavailable":
-            return "Mikrofon nicht verfügbar"
-        case "No speech detected":
-            return "Nichts erkannt"
-        case "Transcription failed":
-            return "Transkription fehlgeschlagen"
-        default:
-            return message
-        }
-    }
 }

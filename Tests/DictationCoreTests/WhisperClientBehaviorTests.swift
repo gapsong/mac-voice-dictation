@@ -84,6 +84,58 @@ struct WhisperClientBehaviorTests {
         #expect(StubURLProtocol.requestCount == 2)
     }
 
+    @Test func transcribeRetriesOn500ThenSucceeds() async throws {
+        // The server 500s ("NoneType has no attribute transcribe") when audio
+        // arrives before the model finishes loading. That is the retryable race,
+        // not a hard failure - the retry should ride it out.
+        let client = makeClient([
+            (500, Data()),
+            (200, Data(#"{"text":"ready now","language":"en","ms":5}"#.utf8)),
+        ])
+        let result = try await client.transcribe(wavData: Data(), language: .en)
+        #expect(result.text == "ready now")
+        #expect(StubURLProtocol.requestCount == 2)
+    }
+
+    @Test func transcribeGivesUpAfterBoundedNotReadyRetries() async {
+        // Persistent 500s should surface .notReady after a bounded number of
+        // attempts rather than looping forever.
+        let client = makeClient([(500, Data())])
+        await #expect(throws: WhisperError.notReady) {
+            _ = try await client.transcribe(wavData: Data(), language: .en)
+        }
+        #expect(StubURLProtocol.requestCount == WhisperClient.maxTranscribeAttempts)
+    }
+
+    @Test func waitUntilReadyReturnsTrueAfterNPolls() async {
+        // Two sleeping health responses, then ready: waitUntilReady should poll
+        // health three times and report ready.
+        let sleeping = Data(#"{"model":"m","state":"sleeping","ready":false}"#.utf8)
+        let ready = Data(#"{"model":"m","state":"ready","ready":true}"#.utf8)
+        let client = makeClient([
+            (200, sleeping),
+            (200, sleeping),
+            (200, ready),
+        ])
+        let up = await client.waitUntilReady(timeout: 5, pollInterval: 0.01)
+        #expect(up == true)
+        #expect(StubURLProtocol.requestCount == 3)
+    }
+
+    @Test func waitUntilReadyTimesOutWhenNeverReady() async {
+        let sleeping = Data(#"{"model":"m","state":"sleeping","ready":false}"#.utf8)
+        let client = makeClient([(200, sleeping)])
+        let up = await client.waitUntilReady(timeout: 0.05, pollInterval: 0.01)
+        #expect(up == false)
+    }
+
+    @Test func waitUntilReadyTreatsStateReadyWithoutFlagAsReady() async {
+        // {"state":"ready"} with no `ready` field must still count as ready.
+        let client = makeClient([(200, Data(#"{"state":"ready"}"#.utf8))])
+        let up = await client.waitUntilReady(timeout: 1, pollInterval: 0.01)
+        #expect(up == true)
+    }
+
     @Test func healthDecodes() async throws {
         let client = makeClient([
             (200, Data(#"{"model":"large-v3-turbo","state":"ready","ready":true}"#.utf8)),
