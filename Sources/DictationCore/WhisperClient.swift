@@ -42,8 +42,9 @@ public enum WhisperRequestFactory {
 /// Async client for the remote whisper service.
 ///
 /// Handles the documented failure modes without ever trapping: 502 backend
-/// down, empty text, network/timeout, and not-yet-ready-after-`/start` (one
-/// short retry). The scoped `HostTrustDelegate` accepts the server's
+/// down, empty text, network/timeout, and the not-yet-ready-after-`/start` race
+/// (gated by `waitUntilReady` and ridden out by a bounded retry loop in
+/// `transcribe`). The scoped `HostTrustDelegate` accepts the server's
 /// self-signed certificate for the configured host only.
 public final class WhisperClient: Sendable {
 
@@ -98,19 +99,64 @@ public final class WhisperClient: Sendable {
         return try decode(HealthResponse.self, from: data)
     }
 
-    /// `POST /transcribe`. On a not-ready backend, retries once after a short
-    /// backoff (the model may still be finishing its wake from `/start`).
+    /// How long `waitUntilReady` polls before giving up, and how often it polls.
+    /// The model typically loads within a few seconds of `/start`.
+    public static let defaultReadyTimeout: TimeInterval = 15
+    public static let defaultReadyPollInterval: TimeInterval = 0.4
+
+    /// One `GET /health`, reduced to a simple readiness bool. Never throws -
+    /// any transport/decoding hiccup is reported as "not ready".
+    public func isReadyNow() async -> Bool {
+        (try? await health())?.isReady ?? false
+    }
+
+    /// Polls `GET /health` until the model reports ready or `timeout` elapses,
+    /// returning the final readiness. The server boots asleep and loads the
+    /// model a few seconds after `/start`; sending audio before then makes it
+    /// 500, so callers use this to gate `/transcribe`. Transient errors while
+    /// polling are treated as "not ready yet" and retried until the deadline.
+    @discardableResult
+    public func waitUntilReady(
+        timeout: TimeInterval = WhisperClient.defaultReadyTimeout,
+        pollInterval: TimeInterval = WhisperClient.defaultReadyPollInterval
+    ) async -> Bool {
+        let polls = max(1, Int((timeout / pollInterval).rounded(.up)))
+        for poll in 0..<polls {
+            if await isReadyNow() { return true }
+            if poll < polls - 1 {
+                try? await Task.sleep(nanoseconds: UInt64(pollInterval * 1_000_000_000))
+            }
+        }
+        return false
+    }
+
+    /// `POST /transcribe`. Retries a bounded number of times on a not-ready
+    /// backend (HTTP 500/503) with exponential backoff, since even just after a
+    /// "ready" health the very first transcribe can race the model swap-in.
     public func transcribe(
         wavData: Data,
         language: WhisperLanguage
     ) async throws -> TranscribeResponse {
-        do {
-            return try await transcribeOnce(wavData: wavData, language: language)
-        } catch WhisperError.notReady {
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
-            return try await transcribeOnce(wavData: wavData, language: language)
+        var backoff: UInt64 = 500_000_000
+        for attempt in 0..<WhisperClient.maxTranscribeAttempts {
+            do {
+                return try await transcribeOnce(wavData: wavData, language: language)
+            } catch WhisperError.notReady {
+                if attempt == WhisperClient.maxTranscribeAttempts - 1 {
+                    throw WhisperError.notReady
+                }
+                try? await Task.sleep(nanoseconds: backoff)
+                backoff = min(backoff * 2, 4_000_000_000)
+            }
         }
+        // Unreachable (the loop either returns or throws), but keeps the
+        // compiler happy about exhaustiveness.
+        throw WhisperError.notReady
     }
+
+    /// Total attempts (initial + retries) `transcribe` makes on a not-ready
+    /// backend before surfacing `.notReady`.
+    static let maxTranscribeAttempts = 4
 
     private func transcribeOnce(
         wavData: Data,
@@ -126,10 +172,12 @@ public final class WhisperClient: Sendable {
         guard let http = response as? HTTPURLResponse else {
             throw WhisperError.decoding
         }
-        // A transcribe before the model is ever woken fails server-side: map
-        // 502 to backendDown and 503 to notReady (the retryable case).
+        // A transcribe before the model has finished loading fails server-side.
+        // Map 502 to backendDown; 500 and 503 are the transient not-ready race
+        // (the server 500s with "NoneType has no attribute transcribe" when the
+        // model is not yet loaded), which the retry loop above rides out.
         if http.statusCode == 502 { throw WhisperError.backendDown }
-        if http.statusCode == 503 { throw WhisperError.notReady }
+        if http.statusCode == 500 || http.statusCode == 503 { throw WhisperError.notReady }
         guard (200..<300).contains(http.statusCode) else {
             throw WhisperError.httpStatus(http.statusCode)
         }

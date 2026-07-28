@@ -8,14 +8,17 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     private let statusItem: NSStatusItem
     private let controller: DictationController
-    private let hotkeyMonitor: HotkeyMonitor
+    private let actions: DictationActions
+    /// Opens/foregrounds the status/settings window from the menu.
+    private let openSettings: () -> Void
 
     /// Latest health line from a "Check server" action, shown in the menu.
     private var lastServerLine: String?
 
-    init(controller: DictationController, hotkeyMonitor: HotkeyMonitor) {
+    init(controller: DictationController, actions: DictationActions, openSettings: @escaping () -> Void) {
         self.controller = controller
-        self.hotkeyMonitor = hotkeyMonitor
+        self.actions = actions
+        self.openSettings = openSettings
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -23,8 +26,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.delegate = self
         statusItem.menu = menu
 
-        apply(status: controller.status)
-        controller.onStatusChange = { [weak self] status in
+        controller.observeStatus { [weak self] status in
             self?.apply(status: status)
         }
     }
@@ -52,6 +54,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         // Permission guidance, only when something is missing.
         addPermissionItems(to: menu)
+
+        menu.addItem(.separator())
+
+        // Always-reachable window (the dependable entry point when the notch
+        // hides this very status item).
+        let window = NSMenuItem(title: "Open Status Window…", action: #selector(openStatusWindow), keyEquivalent: "")
+        window.target = self
+        menu.addItem(window)
 
         menu.addItem(.separator())
 
@@ -148,10 +158,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     // MARK: - Actions
 
+    @objc private func openStatusWindow() {
+        openSettings()
+    }
+
     @objc private func checkServer() {
         lastServerLine = "Checking..."
         Task {
-            let line = await controller.checkServer()
+            let line = await actions.checkServer()
             self.lastServerLine = line
         }
     }
@@ -171,7 +185,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         if alert.runModal() == .alertFirstButtonReturn {
             let value = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !value.isEmpty else { return }
-            controller.updateConfig { $0.serverBaseURLString = value }
+            actions.setServerURL(value)
             lastServerLine = nil
         }
     }
@@ -179,35 +193,28 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func selectLanguage(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String,
               let language = WhisperLanguage(rawValue: raw) else { return }
-        controller.updateConfig { $0.language = language }
+        actions.setLanguage(language)
     }
 
     @objc private func selectHotkey(_ sender: NSMenuItem) {
         guard let index = sender.representedObject as? Int,
               HotkeyConfig.presets.indices.contains(index) else { return }
-        let preset = HotkeyConfig.presets[index]
-        controller.updateConfig { $0.hotkey = preset }
-        hotkeyMonitor.update(hotkey: preset)
+        actions.setHotkey(HotkeyConfig.presets[index])
     }
 
     @objc private func toggleLaunchAtLogin() {
-        let desired = !controller.config.launchAtLogin
-        let ok = LaunchAtLogin.set(desired)
-        controller.updateConfig { $0.launchAtLogin = ok ? desired : LaunchAtLogin.isEnabled }
+        actions.toggleLaunchAtLogin()
     }
 
     @objc private func openKeyboardSettings() {
-        Permissions.openKeyboardSettings()
+        actions.openKeyboardSettings()
     }
 
     @objc private func fixMicrophone() {
-        Permissions.requestMicrophone { granted in
-            if !granted { Permissions.openMicrophoneSettings() }
-        }
+        actions.grantMicrophone()
     }
 
     @objc private func fixAccessibility() {
-        Permissions.promptAccessibility()
-        Permissions.openAccessibilitySettings()
+        actions.grantAccessibility()
     }
 }

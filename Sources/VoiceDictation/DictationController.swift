@@ -16,10 +16,19 @@ final class DictationController {
     private let audio = AudioCapture()
     private var client: WhisperClient
 
-    /// Notifies observers (the status item) whenever the status changes.
-    var onStatusChange: ((AppStatus) -> Void)?
+    /// Fan-out of status changes to every UI surface that reflects it: the
+    /// menu-bar icon, the on-screen overlay, and the settings window. A list
+    /// (not a single closure) so all three stay in sync off one state model.
+    private var statusObservers: [(AppStatus) -> Void] = []
     private(set) var status: AppStatus = .idle {
-        didSet { onStatusChange?(status) }
+        didSet { statusObservers.forEach { $0(status) } }
+    }
+
+    /// Registers an observer for status changes and immediately delivers the
+    /// current status so the caller can render its initial state.
+    func observeStatus(_ observer: @escaping (AppStatus) -> Void) {
+        statusObservers.append(observer)
+        observer(status)
     }
 
     private var transcribeTask: Task<Void, Never>?
@@ -83,20 +92,33 @@ final class DictationController {
             return
         }
 
-        status = .transcribing
         let client = self.client
         let language = config.language
 
         transcribeTask = Task { [weak self] in
+            guard let self else { return }
+
+            // The model may still be loading from the /start we fired on
+            // hotkey-down; sending audio too early makes the server 500. Wait
+            // (bounded) for readiness, surfacing "Warming up server..." only if
+            // we actually have to wait. Choose the first post-recording status
+            // from the readiness result so a cold server never flashes
+            // "Transcribing..." before "Warming up...".
+            if await !client.isReadyNow() {
+                self.status = .warmingUp
+                await client.waitUntilReady()
+            }
+            self.status = .transcribing
+
             do {
                 let response = try await client.transcribe(wavData: wav, language: language)
-                self?.handleTranscription(response.text)
+                self.handleTranscription(response.text)
             } catch let error as WhisperError {
-                self?.status = .error(error.userMessage)
-                self?.log.error("transcribe failed: \(error.userMessage)")
+                self.status = .error(error.userMessage)
+                self.log.error("transcribe failed: \(error.userMessage)")
             } catch {
-                self?.status = .error("Transcription failed")
-                self?.log.error("transcribe failed: \(error.localizedDescription)")
+                self.status = .error("Transcription failed")
+                self.log.error("transcribe failed: \(error.localizedDescription)")
             }
         }
     }
@@ -129,7 +151,7 @@ final class DictationController {
     func checkServer() async -> String {
         do {
             let health = try await client.health()
-            return "Server: \(health.state.rawValue)\(health.ready ? " (ready)" : "") - \(health.model ?? "?")"
+            return "Server: \(health.state.rawValue)\(health.isReady ? " (ready)" : "") - \(health.model ?? "?")"
         } catch let error as WhisperError {
             return error.userMessage
         } catch {
