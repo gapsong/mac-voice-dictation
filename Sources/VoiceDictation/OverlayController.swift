@@ -29,6 +29,10 @@ final class OverlayController {
     private var hideWorkItem: DispatchWorkItem?
     /// Pending auto-hide for a transient banner (the launch greeting).
     private var bannerWorkItem: DispatchWorkItem?
+    /// Bumped on every show / fade so a stale fade-out completion (whose 0.35s
+    /// animation is still in flight when a new active state re-shows the panel)
+    /// knows it has been superseded and must not order the panel out.
+    private var visibilityGeneration = 0
 
     private let horizontalPadding: CGFloat = 18
     private let verticalPadding: CGFloat = 12
@@ -179,6 +183,7 @@ final class OverlayController {
     // MARK: - Show / hide (never activating)
 
     private func show() {
+        visibilityGeneration &+= 1
         // CRITICAL: order front WITHOUT taking key/main focus so the frontmost
         // app - the paste target - does not change.
         panel.orderFrontRegardless()
@@ -196,12 +201,15 @@ final class OverlayController {
     }
 
     private func fadeOut() {
+        visibilityGeneration &+= 1
+        let generation = visibilityGeneration
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = OverlayViewModel.fadeDuration
             panel.animator().alphaValue = 0
         }, completionHandler: { [weak self] in
-            self?.dot.stopPulsing()
-            self?.panel.orderOut(nil)
+            guard let self, self.visibilityGeneration == generation else { return }
+            self.dot.stopPulsing()
+            self.panel.orderOut(nil)
         })
     }
 }

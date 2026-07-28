@@ -64,7 +64,7 @@ RESOURCES_DIR="$CONTENTS/Resources"
 # fine (trust only matters at verification time, which is Gatekeeper's job).
 existing_identity_hash() {
     security find-identity -p codesigning "$SIGN_KEYCHAIN" 2>/dev/null \
-        | grep -F "$SIGN_IDENTITY_CN" | head -1 | awk '{print $2}'
+        | grep -F "$SIGN_IDENTITY_CN" | head -1 | awk '{print $2}' || true
 }
 
 # Appends the signing keychain to the user's search list if not already present
