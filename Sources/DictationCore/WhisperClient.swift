@@ -42,8 +42,9 @@ public enum WhisperRequestFactory {
 /// Async client for the remote whisper service.
 ///
 /// Handles the documented failure modes without ever trapping: 502 backend
-/// down, empty text, network/timeout, and not-yet-ready-after-`/start` (one
-/// short retry). The scoped `HostTrustDelegate` accepts the server's
+/// down, empty text, network/timeout, and the not-yet-ready-after-`/start` race
+/// (gated by `waitUntilReady` and ridden out by a bounded retry loop in
+/// `transcribe`). The scoped `HostTrustDelegate` accepts the server's
 /// self-signed certificate for the configured host only.
 public final class WhisperClient: Sendable {
 
