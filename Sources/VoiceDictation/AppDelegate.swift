@@ -20,7 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let store = UserDefaultsConfigStore()
         controller = DictationController(store: store)
 
-        hotkeyMonitor = HotkeyMonitor(hotkey: controller.config.hotkey)
+        hotkeyMonitor = HotkeyMonitor(hotkeys: controller.config.hotkeys)
         hotkeyMonitor.onPressStart = { [weak self] in
             self?.controller.beginRecording()
         }

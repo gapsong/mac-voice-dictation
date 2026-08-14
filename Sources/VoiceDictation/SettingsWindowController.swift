@@ -25,7 +25,11 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     private let serverField = NSTextField(string: "")
     private let serverResult = NSTextField(labelWithString: "")
     private let languagePopup = NSPopUpButton()
-    private let hotkeyPopup = NSPopUpButton()
+    /// One checkbox per preset, in `HotkeyConfig.presets` order - several
+    /// hotkeys can be armed at once, so this is not a single-choice popup.
+    private let hotkeyChecks: [NSButton] = HotkeyConfig.presets.map {
+        NSButton(checkboxWithTitle: $0.displayName, target: nil, action: nil)
+    }
     private let launchAtLogin = NSButton(checkboxWithTitle: "Launch at Login", target: nil, action: nil)
     private var permissionPollTimer: Timer?
 
@@ -81,7 +85,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         content.addArrangedSubview(separator())
         content.addArrangedSubview(sectionLabel("Settings"))
         content.addArrangedSubview(labeledRow("Language", languagePopup))
-        content.addArrangedSubview(labeledRow("Hotkey", hotkeyPopup))
+        content.addArrangedSubview(hotkeySection())
         content.addArrangedSubview(launchRow())
 
         let root = NSView()
@@ -130,6 +134,40 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         return launchAtLogin
     }
 
+    /// Hotkeys as a checkbox list: arming several at once is the point, since
+    /// fn only ever reaches macOS from an Apple keyboard and an external
+    /// keyboard needs a trigger of its own.
+    private func hotkeySection() -> NSView {
+        var rows: [NSView] = [sectionLabel("Hotkeys (hold any to dictate)")]
+
+        for (index, button) in hotkeyChecks.enumerated() {
+            button.target = self
+            button.action = #selector(toggleHotkey(_:))
+            button.tag = index
+            rows.append(button)
+
+            // The F13-F19 block needs a word of explanation: it is empty on
+            // every real keyboard until the user remaps a key onto it.
+            if HotkeyConfig.presets[index] == HotkeyConfig.modifierPresets.last {
+                rows.append(hint("For an external keyboard, remap one of its keys"))
+                rows.append(hint("onto F13-F19 in the keyboard's own configurator."))
+            }
+        }
+
+        let stack = NSStackView(views: rows)
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 4
+        return stack
+    }
+
+    private func hint(_ text: String) -> NSTextField {
+        let label = NSTextField(labelWithString: text)
+        label.font = .systemFont(ofSize: 11)
+        label.textColor = .secondaryLabelColor
+        return label
+    }
+
     private func labeledRow(_ title: String, _ control: NSView) -> NSView {
         let label = NSTextField(labelWithString: title)
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -158,15 +196,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             languagePopup.selectItem(at: index)
         }
 
-        hotkeyPopup.removeAllItems()
-        for preset in HotkeyConfig.presets {
-            hotkeyPopup.addItem(withTitle: preset.displayName)
-        }
-        hotkeyPopup.target = self
-        hotkeyPopup.action = #selector(selectHotkey)
-        if let index = HotkeyConfig.presets.firstIndex(of: controller.config.hotkey) {
-            hotkeyPopup.selectItem(at: index)
-        }
+        syncHotkeyChecks()
 
         launchAtLogin.state = controller.config.launchAtLogin ? .on : .off
     }
@@ -209,10 +239,21 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         actions.setLanguage(language)
     }
 
-    @objc private func selectHotkey() {
-        let index = hotkeyPopup.indexOfSelectedItem
+    @objc private func toggleHotkey(_ sender: NSButton) {
+        let index = sender.tag
         guard HotkeyConfig.presets.indices.contains(index) else { return }
-        actions.setHotkey(HotkeyConfig.presets[index])
+        actions.setHotkey(HotkeyConfig.presets[index], enabled: sender.state == .on)
+        // Re-read the config rather than trusting the click: disarming the last
+        // hotkey is refused, and the checkbox must snap back when it is.
+        syncHotkeyChecks()
+    }
+
+    /// Mirror the armed set onto the checkboxes.
+    private func syncHotkeyChecks() {
+        let armed = controller.config.hotkeys
+        for (index, button) in hotkeyChecks.enumerated() {
+            button.state = armed.contains(HotkeyConfig.presets[index]) ? .on : .off
+        }
     }
 
     @objc private func toggleLaunchAtLogin() {

@@ -183,8 +183,11 @@ public final class WhisperClient: Sendable {
         }
 
         let decoded = try decode(TranscribeResponse.self, from: data)
-        let trimmed = decoded.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty { throw WhisperError.emptyText }
+        // Silence does not come back empty. Whisper answers it with subtitle
+        // boilerplate ("Untertitelung des ZDF, 2020"), which the server reports
+        // as an ordinary success - so treat it as the no-speech case it is,
+        // rather than pasting it into the user's document.
+        if SilenceArtifactFilter.isArtifact(decoded.text) { throw WhisperError.emptyText }
         return decoded
     }
 

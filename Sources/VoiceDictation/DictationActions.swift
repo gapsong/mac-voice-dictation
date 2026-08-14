@@ -43,10 +43,17 @@ final class DictationActions {
         controller.updateConfig { $0.language = language }
     }
 
-    /// Changes the hold-to-talk hotkey and re-points the live event tap at it.
-    func setHotkey(_ hotkey: HotkeyConfig) {
-        controller.updateConfig { $0.hotkey = hotkey }
-        hotkeyMonitor.update(hotkey: hotkey)
+    /// Arms or disarms one hold-to-talk hotkey and re-points the live event tap
+    /// at the resulting set. Disarming the last remaining hotkey is refused by
+    /// `AppConfig`, so the app always keeps a way to record.
+    func setHotkey(_ hotkey: HotkeyConfig, enabled: Bool) {
+        controller.updateConfig { $0.setHotkey(hotkey, enabled: enabled) }
+        hotkeyMonitor.update(hotkeys: controller.config.hotkeys)
+    }
+
+    /// Flips one hotkey between armed and disarmed.
+    func toggleHotkey(_ hotkey: HotkeyConfig) {
+        setHotkey(hotkey, enabled: !controller.config.hotkeys.contains(hotkey))
     }
 
     func setServerURL(_ urlString: String) {
