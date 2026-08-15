@@ -124,20 +124,26 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         return parent
     }
 
+    /// Hotkeys are checkboxes, not a single choice: several can be armed at
+    /// once so one setting covers keyboards with different capabilities.
     private func hotkeyMenu() -> NSMenuItem {
-        let parent = NSMenuItem(title: "Hotkey: \(controller.config.hotkey.displayName)", action: nil, keyEquivalent: "")
+        let config = controller.config
+        let parent = NSMenuItem(title: "Hotkeys: \(config.hotkeysSummary)", action: nil, keyEquivalent: "")
         let submenu = NSMenu()
-        for (index, preset) in HotkeyConfig.presets.enumerated() {
-            let item = NSMenuItem(title: "Hold \(preset.displayName)", action: #selector(selectHotkey(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = index
-            item.state = controller.config.hotkey == preset ? .on : .off
-            submenu.addItem(item)
-        }
 
-        // First-run guidance for the default fn/Globe hotkey: without this the
-        // Globe key also fires emoji / input switching while dictating.
-        if case .modifierFlag = controller.config.hotkey.trigger {
+        submenu.addItem(disabledItem("Hold any armed key to dictate."))
+        submenu.addItem(.separator())
+
+        addHotkeyItems(HotkeyConfig.modifierPresets, to: submenu)
+
+        submenu.addItem(.separator())
+        submenu.addItem(disabledItem("For external keyboards - remap a key"))
+        submenu.addItem(disabledItem("onto one of these in its configurator:"))
+        addHotkeyItems(HotkeyConfig.functionKeys, to: submenu)
+
+        // Guidance for fn/Globe: without this the Globe key also fires emoji /
+        // input switching while dictating.
+        if config.hotkeys.contains(where: { if case .modifierFlag = $0.trigger { return true } else { return false } }) {
             submenu.addItem(.separator())
             submenu.addItem(disabledItem("Set Globe key → \"Do Nothing\" so fn"))
             submenu.addItem(disabledItem("doesn't also switch input / emoji:"))
@@ -148,6 +154,17 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         parent.submenu = submenu
         return parent
+    }
+
+    private func addHotkeyItems(_ presets: [HotkeyConfig], to submenu: NSMenu) {
+        for preset in presets {
+            guard let index = HotkeyConfig.presets.firstIndex(of: preset) else { continue }
+            let item = NSMenuItem(title: "Hold \(preset.displayName)", action: #selector(toggleHotkey(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = index
+            item.state = controller.config.hotkeys.contains(preset) ? .on : .off
+            submenu.addItem(item)
+        }
     }
 
     private func disabledItem(_ title: String) -> NSMenuItem {
@@ -196,10 +213,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         actions.setLanguage(language)
     }
 
-    @objc private func selectHotkey(_ sender: NSMenuItem) {
+    @objc private func toggleHotkey(_ sender: NSMenuItem) {
         guard let index = sender.representedObject as? Int,
               HotkeyConfig.presets.indices.contains(index) else { return }
-        actions.setHotkey(HotkeyConfig.presets[index])
+        actions.toggleHotkey(HotkeyConfig.presets[index])
     }
 
     @objc private func toggleLaunchAtLogin() {

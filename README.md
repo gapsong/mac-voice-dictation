@@ -10,10 +10,12 @@ This is the Mac counterpart of the BikeOffice Android dictation, reusing the sam
 - Lives in the menu bar only (no Dock icon). The status icon reflects state: idle, recording, transcribing, inserting, error, or needs-permission.
 - **On-screen recording overlay**: a floating HUD appears at the bottom-centre of your screen while recording / transcribing / inserting, so feedback never depends on the menu-bar icon (which the notch on 15" MacBook Airs can hide). It shows a pulsing red dot while recording and fades out shortly after you finish. See [On-screen feedback](#on-screen-feedback-and-reaching-the-app).
 - **Status/settings window**: a normal window with live status, both permission states (with Grant buttons), a server check, and every setting the menu has. **Re-open the app while it is already running (click it in Finder/Dock, or `open build/VoiceDictation.app` again) to bring this window up** - a dependable way in even when the notch hides the menu-bar icon.
-- **Hold-to-talk**: hold the hotkey (default **fn / Globe**) to record, release to transcribe and insert. A short debounce ignores accidental taps. Right Option and other modifiers are selectable fallbacks.
+- **Hold-to-talk**: hold a hotkey to record, release to transcribe and insert. A short debounce ignores accidental taps.
+- **Several hotkeys at once** (default **fn / Globe** *and* **F13**). fn only ever reaches macOS from an Apple keyboard, so an external keyboard needs a trigger of its own - see [Hotkeys on external keyboards](#hotkeys-on-external-keyboards). Holding any armed key records; the hold ends when that same key is released, so the keys never interfere with each other.
 - On hotkey-down it proactively fires `POST /start` so the (asleep-by-default) model warms while you are still speaking.
 - Inserts text by putting it on the pasteboard, synthesizing **Cmd+V** into the focused app, then **restoring the previous pasteboard contents**.
-- Server URL, hotkey, language (`de` default, plus `en`/`auto`), and launch-at-login are configurable from the menu and persist across restarts.
+- **Drops Whisper's silence artifacts.** Handed near-silence, Whisper answers with subtitle boilerplate ("Untertitelung des ZDF, 2020", "Subtitles by the Amara.org community") rather than an empty string. Holding the key without speaking shows "No speech detected" and pastes nothing. See [Silence artifacts](#silence-artifacts).
+- Server URL, hotkeys, language (`de` default, plus `en`/`auto`), and launch-at-login are configurable from the menu and persist across restarts.
 
 ## Requirements
 
@@ -63,13 +65,54 @@ The app needs **two** macOS permissions. The menu shows a clear ⚠ item for whi
 
 > Because the app is signed with a **stable self-signed identity** (see [Stable signing](#stable-signing-so-permissions-survive-rebuilds)), macOS remembers these grants across rebuilds instead of re-prompting after each reinstall.
 
-### Free up the Globe key (required for the default hotkey)
+### Free up the Globe key (required for the fn hotkey)
 
-The default hotkey is **fn / Globe**. By default macOS uses that key to show the emoji picker or switch input sources, which would fire every time you dictate. Turn that off once:
+One of the two default hotkeys is **fn / Globe**. By default macOS uses that key to show the emoji picker or switch input sources, which would fire every time you dictate. Turn that off once:
 
 **System Settings → Keyboard → "Press 🌐 Globe key to" → "Do Nothing".**
 
-After that, holding fn/Globe cleanly triggers push-to-talk and nothing else. (If you'd rather keep the Globe key's system behavior, pick a different hold key from the menu's **Hotkey** submenu - Right Option is a solid fallback.)
+After that, holding fn/Globe cleanly triggers push-to-talk and nothing else. (If you'd rather keep the Globe key's system behavior, switch fn off in the menu's **Hotkeys** submenu and leave another key armed.)
+
+## Hotkeys on external keyboards
+
+**fn on a third-party keyboard does not reach macOS at all.** Apple's fn/Globe is not an ordinary key: it travels on a private Apple HID usage page and macOS turns it into the `.maskSecondaryFn` modifier *flag*, which is what the app watches. A third-party keyboard resolves its own fn key inside its firmware as a layer switch and sends nothing to the Mac, so there is no event for any app to see. This is a hardware/firmware fact, not something the app can work around.
+
+Verified on a NuPhy Air75 V2: across 666 captured key events the keyboard emitted every letter, Shift, Command and Space, and **never** the fn flag - while the built-in Apple keyboard emitted the fn flag and nothing else.
+
+The fix is a hotkey that travels over standard HID. The app arms **F13** by default alongside fn:
+
+1. In your keyboard's own configurator (NuPhy Console, VIA, QMK, Logi Options+, …), remap a key you do not otherwise use - its fn, Right Control, or a spare macro key - to **F13**.
+2. That is it. F13 is already armed, so holding the remapped key starts dictation.
+
+**Why F13-F19.** They exist in the USB HID keyboard page, are absent from Apple keyboards, and macOS binds nothing to them, so nothing else competes for the key. They are also plain keys rather than live modifiers: holding one cannot alter what your other keystrokes mean, unlike holding Right Option (which on the German layout is how you type `@`, `€` and `|`). F14-F19 are selectable too if F13 is already taken.
+
+Modifier keys remain available in the **Hotkeys** submenu if you prefer one, and several hotkeys can be armed at the same time - which is the point, since one Mac usually has both an Apple keyboard and an external one attached.
+
+### Diagnosing a key that does nothing
+
+A key that never reaches macOS, a key arriving under an unexpected code, and a key correctly ignored all look identical from the UI. Run the binary in the foreground with the hotkey trace on and press the key:
+
+```sh
+VOICEDICTATION_LOG_HOTKEYS=1 build/VoiceDictation.app/Contents/MacOS/VoiceDictation
+```
+
+Each key event prints its shape, flags, source device, and what the app decided:
+
+```
+[hotkey] keyDown(keyCode: 105) flags=0x20800000 device=0x0 -> began
+[hotkey] keyUp(keyCode: 105) flags=0x20800000 device=0x0 -> ended
+[hotkey] keyDown(keyCode: 51) flags=0x100 device=0x100007c5b -> ignored
+```
+
+No line at all when you press the key means macOS never saw it - that is the firmware-layer case above. `device=` is the HID registry id, matching the `RegistryID` column of `hidutil list --matching '{"PrimaryUsagePage":1,"PrimaryUsage":6}'`, so you can tell which physical keyboard sent what.
+
+## Silence artifacts
+
+Whisper was trained on subtitled video, so near-silence does not come back empty - it comes back as the boilerplate that ends a subtitle track. In German that is almost always **"Untertitelung des ZDF, 2020"**; in English, "Subtitles by the Amara.org community" or "Thanks for watching!". The server reports these as ordinary successful transcriptions, so without a filter the app would paste them into whatever you were typing in.
+
+`SilenceArtifactFilter` rejects those whole utterances and the app reports "No speech detected" instead.
+
+It is deliberately narrow. Short polite phrases Whisper also emits on silence - "Vielen Dank.", "Thank you." - are **not** filtered, because you may well dictate exactly those words, and silently swallowing real speech is the worse failure. Sentences that merely mention a broadcaster ("Das lief gestern im ZDF") are kept too, since the patterns are anchored to the whole utterance.
 
 ## On-screen feedback and reaching the app
 
@@ -81,10 +124,11 @@ Because the app is menu-bar-only, the notch on a 15" MacBook Air (and a crowded 
 ## Usage
 
 1. Launch the app and grant both permissions, and set "Press Globe key to → Do Nothing" (see above).
-2. Focus any text field in any app.
-3. Hold **fn / Globe**, speak, and release. The transcription is pasted at the cursor.
-4. Adjust the hotkey, language, server URL, and launch-at-login from the menu-bar icon.
-5. "Check Server" runs a `/health` probe and shows the server's state (it boots asleep by design).
+2. On an external keyboard, remap a key to **F13** (see [Hotkeys on external keyboards](#hotkeys-on-external-keyboards)).
+3. Focus any text field in any app.
+4. Hold **fn / Globe** (Apple keyboard) or your **F13** key (external keyboard), speak, and release. The transcription is pasted at the cursor.
+5. Adjust the hotkeys, language, server URL, and launch-at-login from the menu-bar icon.
+6. "Check Server" runs a `/health` probe and shows the server's state (it boots asleep by design).
 
 ## Tests
 
@@ -130,5 +174,5 @@ The mic / global-hotkey / paste path cannot be exercised headlessly. On a real M
 
 Clean module split so each layer is independently testable:
 
-- `Sources/DictationCore/` (no AppKit, headless-testable): `WavEncoder`, `WhisperClient` + `WhisperRequestFactory`, `WhisperModels`, `HostTrustDelegate`, `AppConfig` + `ConfigStore`, `AppStatus`, and `OverlayViewModel` (maps `AppStatus` → overlay label/accent/pulse + the auto-hide timing policy, unit-tested).
-- `Sources/VoiceDictation/` (AppKit app): `AudioCapture` (AVAudioEngine → 16 kHz mono Int16), `HotkeyMonitor` (CGEventTap), `TextInserter` (pasteboard + Cmd+V + restore), `Permissions`, `LaunchAtLogin` (SMAppService), `DictationController` (orchestration; fans status out to multiple observers), `DictationActions` (shared settings mutations), `StatusItemController` (menu), `OverlayController` (non-activating floating HUD), `SettingsWindowController` (status/settings window), `AppDelegate`.
+- `Sources/DictationCore/` (no AppKit, headless-testable): `WavEncoder`, `WhisperClient` + `WhisperRequestFactory`, `WhisperModels`, `HostTrustDelegate`, `AppConfig` + `ConfigStore`, `AppStatus`, `OverlayViewModel` (maps `AppStatus` → overlay label/accent/pulse + the auto-hide timing policy, unit-tested), and `HotkeyEdgeResolver` (the hold-to-talk state machine over the armed hotkey set, unit-tested).
+- `Sources/VoiceDictation/` (AppKit app): `AudioCapture` (AVAudioEngine → 16 kHz mono Int16), `HotkeyMonitor` (CGEventTap adapter + debounce over `HotkeyEdgeResolver`), `TextInserter` (pasteboard + Cmd+V + restore), `Permissions`, `LaunchAtLogin` (SMAppService), `DictationController` (orchestration; fans status out to multiple observers), `DictationActions` (shared settings mutations), `StatusItemController` (menu), `OverlayController` (non-activating floating HUD), `SettingsWindowController` (status/settings window), `AppDelegate`.
