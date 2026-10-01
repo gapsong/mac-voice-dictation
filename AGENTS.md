@@ -10,7 +10,7 @@ A native macOS menu-bar push-to-talk dictation app (Swift/AppKit). Hold a global
 
 - **Build the app bundle:** `Scripts/build-app.sh` → `build/VoiceDictation.app` (runs `swift build -c release`, assembles the bundle, signs with a stable self-signed identity - see below).
 - **Run:** `open build/VoiceDictation.app`, or run `build/VoiceDictation.app/Contents/MacOS/VoiceDictation` directly for foreground logs.
-- **Test:** `swift test`.
+- **Test:** `Scripts/test.sh` (wraps `swift test`; see the toolchain gotcha below).
 - We deliberately use an **SPM executable + bundling script**, not an Xcode project, so it is headless-buildable with only the Swift toolchain.
 
 ### Toolchain gotcha: Command Line Tools only
@@ -19,6 +19,7 @@ This machine has the **Command Line Tools**, not full Xcode. Consequences that w
 
 - `xcodebuild` is unavailable - hence the SPM + `Scripts/build-app.sh` approach.
 - **`XCTest` is not in the CLT SDK.** `import XCTest` fails with "no such module". The tests therefore use the **Swift Testing** framework (`import Testing`, `@Test`, `#expect`), whose `Testing.framework` *is* bundled with CLT. Do not port tests back to XCTest here.
+- **Newer toolchains do not find that `Testing.framework` by themselves** (seen with Swift 6.3.3): a bare `swift test` fails with "no such module 'Testing'". `Scripts/test.sh` passes the CLT framework path to compiler, linker and runtime; always run tests through it.
 - Signing: see "Stable code-signing" below. `XCTest`'s absence is the CLT gotcha; signing is the TCC one.
 
 ## Stable code-signing (so TCC grants survive rebuilds)
@@ -38,20 +39,20 @@ Two, both surfaced in the menu as ⚠ items when missing:
 1. **Microphone** - `AVAudioEngine` input. Auto-requested on first launch (`NSMicrophoneUsageDescription` in `Resources/Info.plist`).
 2. **Accessibility** - needed for BOTH the global hotkey `CGEventTap` AND the synthetic Cmd+V paste. `CGEvent.tapCreate` returns `nil` without it. Granted out-of-band in System Settings; the app polls `AXIsProcessTrusted()` and arms the hotkey once granted.
 
-## Self-signed cert handling
+## Default server: local whisper-service
 
-The whisper server at `:9443` presents a cert the system does **not** trust (reference client uses `curl -sk`). We accept it via `HostTrustDelegate` (a `URLSessionDelegate`) scoped to the configured host only - any other host falls through to default validation. `Resources/Info.plist` adds a narrow ATS exception for `gpuserver.beaver-brotula.ts.net` only; ATS is not disabled globally.
+The default server is `http://127.0.0.1:9876`, the local [whisper-service](https://github.com/gapsong/whisper-service) (MLX on the Mac's GPU, LaunchAgent `com.gapsong.whisper-service`). Plain HTTP to it is allowed by `NSAllowsLocalNetworking` in `Resources/Info.plist`, which covers local addresses only. If it is not running, the app shows "Server unreachable (whisper-service running?)"; the live `/health` test in `swift test` skips gracefully.
 
-## Tailscale prerequisite
+## Self-signed cert handling (remote gpuserver only)
 
-The whisper server is a **tailnet host** (`gpuserver.beaver-brotula.ts.net` → 100.x). The Mac must be on the tailnet or DNS won't resolve and the app shows "Server unreachable (on Tailscale?)". The live `/health` test in `swift test` skips gracefully when off the tailnet.
+The old remote server at `https://gpuserver.beaver-brotula.ts.net:9443` presents a cert the system does **not** trust (reference client uses `curl -sk`). We accept it via `HostTrustDelegate` (a `URLSessionDelegate`) scoped to the configured host only - any other host falls through to default validation. `Resources/Info.plist` keeps a narrow ATS exception for that host only; ATS is not disabled globally. Using it requires the Mac to be on the tailnet.
 
-## Server contract (do NOT build or change the server)
+## Server contract (implemented by whisper-service - change it there, not here)
 
-Real server: `https://gpuserver.beaver-brotula.ts.net:9443` (HTTPS reverse proxy in front of uvicorn; model `large-v3-turbo`).
+Default server: `http://127.0.0.1:9876` (whisper-service; uvicorn; model `large-v3-turbo`). The gpuserver speaks the same contract.
 
 - `GET /health` → `{"model","state","ready"}`, `state ∈ {sleeping, ready}`. **Boots asleep by design** (0 GPU).
-- `POST /start` → wakes + loads model (a few seconds) → `{"state":"ready","ready":true}`. Fired on hotkey-**down** so the model warms while the user speaks.
+- `POST /start` → starts loading the model and returns the current health body (whisper-service answers at once; the gpuserver blocked until `{"state":"ready","ready":true}`). Either way the app then polls `/health`. Fired on hotkey-**down** so the model warms while the user speaks.
 - `POST /transcribe` → `Content-Type: audio/wav`, body = **mono / 16-bit PCM / 16 kHz** WAV, header `X-Language: de|en|auto` → `{"text","language","ms"}`.
 - Handled failure modes (visible status, never a crash): HTTP 502 (backend down), empty `text`, network/timeout/unreachable, and the warm-up race (below).
 

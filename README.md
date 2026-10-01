@@ -3,7 +3,8 @@
 Native macOS **menu-bar push-to-talk dictation** app in Swift.
 Hold a global hotkey, speak, release - the recorded utterance is sent to the remote whisper service, transcribed, and the resulting text is pasted at the cursor of whatever app is focused.
 
-This is the Mac counterpart of the BikeOffice Android dictation, reusing the same whisper backend (`large-v3-turbo`) on the shared gpuserver.
+This is the Mac counterpart of the BikeOffice Android dictation, using the same whisper model (`large-v3-turbo`).
+By default it talks to [whisper-service](https://github.com/gapsong/whisper-service), a local whisper server on the Mac's own GPU, so dictation works offline and without any other machine.
 
 ## What it does
 
@@ -21,7 +22,8 @@ This is the Mac counterpart of the BikeOffice Android dictation, reusing the sam
 
 - macOS 13 (Ventura) or later.
 - Swift toolchain (the Xcode **Command Line Tools** are sufficient - a full Xcode install is *not* required).
-- **Tailscale**: the whisper server is a tailnet host (`gpuserver.beaver-brotula.ts.net`). The Mac must be on the tailnet for it to resolve; otherwise the menu shows "Server unreachable (on Tailscale?)".
+- **whisper-service** running on the Mac (`scripts/install.sh` in that repo sets it up as a LaunchAgent on `http://127.0.0.1:9876`). Otherwise the menu shows "Server unreachable (whisper-service running?)".
+  The old tailnet server (`https://gpuserver.beaver-brotula.ts.net:9443`) still works: set it as the server URL; the Mac must then be on Tailscale.
 
 ## Build
 
@@ -133,8 +135,10 @@ Because the app is menu-bar-only, the notch on a 15" MacBook Air (and a crowded 
 ## Tests
 
 ```sh
-swift test
+Scripts/test.sh
 ```
+
+This wraps `swift test`. With only the Command Line Tools, newer Swift toolchains do not find the bundled `Testing.framework` by themselves ("no such module 'Testing'"); the script points them at it.
 
 Covers:
 - **WAV encoding** - a canonical 16 kHz / mono / 16-bit header plus correct little-endian sample data.
@@ -142,16 +146,18 @@ Covers:
 - **Client behavior** - 502 backend-down, empty-text, retry-on-not-ready (503 **and** 500) with a bounded give-up, and `waitUntilReady` health-polling (ready-after-N-polls, timeout, and `{"state":"ready"}` without a `ready` flag), exercised with a stub `URLProtocol`.
 - **Overlay view-model** - `AppStatus` → label / accent / pulse mapping and the auto-hide timing policy.
 - **Config persistence** - round-trips through `UserDefaults`.
-- **Live `/health` smoke check** - when on the tailnet it validates the real TLS trust exception and response decoding against the server; off the tailnet it skips gracefully.
+- **Live `/health` smoke check** - when the default server (local whisper-service) is running it validates the network path and response decoding against it; otherwise it skips gracefully.
 
-## Server contract (reference - do not modify the server)
+## Server contract (reference - implemented by whisper-service)
 
-Base URL: `https://gpuserver.beaver-brotula.ts.net:9443` (HTTPS reverse proxy in front of a uvicorn backend). The cert is **self-signed / not system-trusted**; the app accepts it via a `URLSessionDelegate` scoped to that host only (see `HostTrustDelegate`).
+Default base URL: `http://127.0.0.1:9876`, the local [whisper-service](https://github.com/gapsong/whisper-service). Plain HTTP is allowed for local addresses only (`NSAllowsLocalNetworking` in `Resources/Info.plist`).
+
+The old remote server `https://gpuserver.beaver-brotula.ts.net:9443` speaks the same contract. Its cert is **self-signed / not system-trusted**; the app accepts it via a `URLSessionDelegate` scoped to that host only (see `HostTrustDelegate`).
 
 | Endpoint | Method | Notes |
 |---|---|---|
 | `/health` | GET | `{"model","state","ready"}`, `state ∈ {sleeping, ready}`. Boots asleep (0 GPU). |
-| `/start` | POST | Wakes and loads the model (a few seconds) → `{"state":"ready","ready":true}`. Fired on hotkey-down. |
+| `/start` | POST | Starts loading the model and returns the health body (whisper-service answers at once; well under a second to ready). The app then polls `/health`. Fired on hotkey-down. |
 | `/transcribe` | POST | `Content-Type: audio/wav`, body = mono/16-bit/16 kHz WAV, header `X-Language: de\|en\|auto` → `{"text","language","ms"}`. |
 
 Handled failure modes (visible status, never a crash): HTTP 502 (backend down), empty `text`, network/timeout/unreachable, and **not-yet-ready after `/start`**. The server boots asleep and takes a few seconds to load the model after `/start`; transcribing before then makes it return HTTP 500 ("NoneType has no attribute transcribe"). The app therefore polls `GET /health` until `state == ready` (bounded ~15s, showing "Warming up server…") before sending audio, and additionally retries `/transcribe` on 500/503 with exponential backoff as a backstop. Health decoding tolerates a `ready` field that is absent, treating `{"state":"ready"}` as ready.
@@ -162,13 +168,13 @@ The mic / global-hotkey / paste path cannot be exercised headlessly. On a real M
 
 1. `Scripts/build-app.sh && open build/VoiceDictation.app`.
 2. Grant Microphone (prompt) and Accessibility (System Settings), confirm the menu ⚠ items clear. Set "Press Globe key to → Do Nothing".
-3. Ensure Tailscale is connected; "Check Server" shows `sleeping` or `ready`.
+3. Ensure whisper-service is running (`curl http://127.0.0.1:9876/health`); "Check Server" shows `sleeping` or `ready`.
 4. Focus a text field, hold fn/Globe, speak a German phrase, release → text is pasted.
 5. **Overlay**: while holding fn/Globe, confirm the "🎙 Recording…" HUD appears bottom-centre with a pulsing red dot, then progresses to "✍️ Transcribing…"/"Inserting…" (with "⏳ Warming up server…" in between if the model was still asleep) and fades out. Critically, confirm the **frontmost app does not change** when it appears and the text still pastes into your focused field (the overlay is non-activating).
 6. Copy something to the clipboard first, dictate, then paste (Cmd+V) → confirm your original clipboard is back.
 7. **Re-open window**: with the app already running, run `open build/VoiceDictation.app` again (or click it in Finder) → the status/settings window appears centred. Grant a permission from it and confirm the row flips to "✓ Granted"; close it and confirm no permanent Dock icon remains.
 8. Change hotkey/language/server URL/launch-at-login in the window or menu, quit, relaunch → settings persist.
-9. Disconnect Tailscale and dictate → the menu/overlay shows "Server unreachable", no crash.
+9. Stop whisper-service (`launchctl bootout gui/$(id -u)/com.gapsong.whisper-service`) and dictate → the menu/overlay shows "Server unreachable", no crash. Start it again with its `scripts/install.sh`.
 
 ## Architecture
 

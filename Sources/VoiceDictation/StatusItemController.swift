@@ -190,7 +190,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func editServerURL() {
         let alert = NSAlert()
         alert.messageText = "Whisper Server URL"
-        alert.informativeText = "Base URL of the whisper service (e.g. the tailnet host)."
+        alert.informativeText = "Base URL of the whisper service (default: the local whisper-service, http://127.0.0.1:9876)."
         alert.addButton(withTitle: "Save")
         alert.addButton(withTitle: "Cancel")
 

@@ -117,7 +117,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     }
 
     private func serverRow() -> NSView {
-        serverField.placeholderString = "https://host:9443"
+        serverField.placeholderString = "http://127.0.0.1:9876"
         serverField.translatesAutoresizingMaskIntoConstraints = false
         serverField.widthAnchor.constraint(equalToConstant: 240).isActive = true
 

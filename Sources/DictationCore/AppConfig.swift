@@ -122,9 +122,10 @@ public struct AppConfig: Codable, Equatable, Sendable {
         self.launchAtLogin = launchAtLogin
     }
 
-    /// Default server lives on the tailnet; German is the default language to
+    /// Default server is the local whisper-service on this Mac
+    /// (github.com/gapsong/whisper-service); German is the default language to
     /// match the BikeOffice dictation usage.
-    public static let defaultServerURL = "https://gpuserver.beaver-brotula.ts.net:9443"
+    public static let defaultServerURL = "http://127.0.0.1:9876"
 
     /// fn/Globe covers the built-in Apple keyboard; F13 covers every external
     /// keyboard once a key is remapped onto it. F13 costs nothing to leave
