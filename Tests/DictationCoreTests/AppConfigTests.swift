@@ -6,7 +6,7 @@ import Foundation
 
     @Test func defaultsMatchContract() {
         let config = AppConfig.default
-        #expect(config.serverBaseURLString == "https://gpuserver.beaver-brotula.ts.net:9443")
+        #expect(config.serverBaseURLString == "http://127.0.0.1:9876")
         #expect(config.language == .de)
         #expect(config.hotkeys == [.fnGlobe, .f13])
         #expect(config.launchAtLogin == false)
@@ -106,8 +106,8 @@ import Foundation
 
     @Test func serverBaseURLParsesValid() {
         #expect(AppConfig.default.serverBaseURL != nil)
-        #expect(AppConfig.default.serverBaseURL?.host == "gpuserver.beaver-brotula.ts.net")
-        #expect(AppConfig.default.serverBaseURL?.port == 9443)
+        #expect(AppConfig.default.serverBaseURL?.host == "127.0.0.1")
+        #expect(AppConfig.default.serverBaseURL?.port == 9876)
     }
 
     @Test func serverBaseURLRejectsMalformed() {

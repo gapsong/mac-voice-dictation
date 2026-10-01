@@ -53,7 +53,7 @@ public final class WhisperClient: Sendable {
     private let ownsSession: Bool
 
     /// - Parameters:
-    ///   - baseURL: Server base, e.g. `https://gpuserver...:9443`.
+    ///   - baseURL: Server base, e.g. `http://127.0.0.1:9876`.
     ///   - session: Inject a custom session for tests; defaults to one wired to
     ///     a `HostTrustDelegate` scoped to `baseURL`'s host.
     public init(baseURL: URL, session: URLSession? = nil) {

@@ -74,7 +74,8 @@ public enum WhisperError: Error, Equatable, Sendable {
     case httpStatus(Int)
     /// Response body could not be decoded.
     case decoding
-    /// Network failure / timeout / host unreachable (e.g. off the tailnet).
+    /// Network failure / timeout / host unreachable (e.g. whisper-service not
+    /// running, or a remote server while off the tailnet).
     case unreachable(String)
 
     public var userMessage: String {
@@ -84,7 +85,7 @@ public enum WhisperError: Error, Equatable, Sendable {
         case .emptyText: return "No speech detected"
         case .httpStatus(let code): return "Server error (HTTP \(code))"
         case .decoding: return "Bad response from server"
-        case .unreachable: return "Server unreachable (on Tailscale?)"
+        case .unreachable: return "Server unreachable (whisper-service running?)"
         }
     }
 }
