@@ -1,10 +1,41 @@
 # mac-voice-dictation
 
-Native macOS **menu-bar push-to-talk dictation** app in Swift.
-Hold a global hotkey, speak, release - the recorded utterance is sent to the remote whisper service, transcribed, and the resulting text is pasted at the cursor of whatever app is focused.
+<img src="Resources/AppIcon.svg" width="96" align="right" alt="Voice Dictation icon">
 
-This is the Mac counterpart of the BikeOffice Android dictation, using the same whisper model (`large-v3-turbo`).
-By default it talks to [whisper-service](https://github.com/gapsong/whisper-service), a local whisper server on the Mac's own GPU, so dictation works offline and without any other machine.
+Push-to-talk dictation for macOS: **hold a key, speak, release** - the text appears at your cursor in any app.
+
+Speech is transcribed by whisper `large-v3-turbo` on your Mac's own GPU, through [whisper-service](https://github.com/gapsong/whisper-service).
+It is fast (about 0.2 s for a sentence), works offline, and your voice never leaves the Mac.
+A native Swift menu-bar app, no Electron, no account.
+
+## Quick start
+
+You need a Mac with Apple Silicon and the Xcode Command Line Tools (`xcode-select --install`; full Xcode is not needed).
+
+**1. The speech server** (one time, downloads the model, ~1.6 GB):
+
+```sh
+git clone https://github.com/gapsong/whisper-service.git
+whisper-service/scripts/install.sh
+```
+
+**2. The app:**
+
+```sh
+git clone https://github.com/gapsong/mac-voice-dictation.git
+mac-voice-dictation/Scripts/install.sh
+```
+
+**3. One-time macOS settings** (the install script lists them too):
+
+- Allow the microphone when macOS asks.
+- System Settings > Privacy & Security > **Accessibility**: turn on **VoiceDictation** (for the hotkey and for pasting).
+- System Settings > Keyboard > "Press Globe key to": **Do Nothing**.
+
+Now click into any text field, **hold fn/Globe**, speak, and release.
+On an external keyboard, use **F13** instead - see [Hotkeys on external keyboards](#hotkeys-on-external-keyboards).
+
+To update later: `git pull` in both folders and run both install scripts again.
 
 ## What it does
 
@@ -23,9 +54,12 @@ By default it talks to [whisper-service](https://github.com/gapsong/whisper-serv
 - macOS 13 (Ventura) or later.
 - Swift toolchain (the Xcode **Command Line Tools** are sufficient - a full Xcode install is *not* required).
 - **whisper-service** running on the Mac (`scripts/install.sh` in that repo sets it up as a LaunchAgent on `http://127.0.0.1:9876`). Otherwise the menu shows "Server unreachable (whisper-service running?)".
-  The old tailnet server (`https://gpuserver.beaver-brotula.ts.net:9443`) still works: set it as the server URL; the Mac must then be on Tailscale.
+  Any other server that speaks the same protocol works too: set its URL in the settings.
 
 ## Build
+
+`Scripts/install.sh` builds, installs and starts the app in one go.
+To only build:
 
 ```sh
 Scripts/build-app.sh
@@ -188,3 +222,7 @@ Clean module split so each layer is independently testable:
 
 - `Sources/DictationCore/` (no AppKit, headless-testable): `WavEncoder`, `WhisperClient` + `WhisperRequestFactory`, `WhisperModels`, `HostTrustDelegate`, `AppConfig` + `ConfigStore`, `AppStatus`, `OverlayViewModel` (maps `AppStatus` → overlay label/accent/pulse + the auto-hide timing policy, unit-tested), and `HotkeyEdgeResolver` (the hold-to-talk state machine over the armed hotkey set, unit-tested).
 - `Sources/VoiceDictation/` (AppKit app): `AudioCapture` (AVAudioEngine → 16 kHz mono Int16), `HotkeyMonitor` (CGEventTap adapter + debounce over `HotkeyEdgeResolver`), `TextInserter` (pasteboard + Cmd+V + restore), `Permissions`, `LaunchAtLogin` (SMAppService), `DictationController` (orchestration; fans status out to multiple observers), `DictationActions` (shared settings mutations), `StatusItemController` (menu), `OverlayController` (non-activating floating HUD), `SettingsWindowController` (status/settings window), `AppDelegate`.
+
+## License
+
+[MIT](LICENSE).
