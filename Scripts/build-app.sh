@@ -194,6 +194,8 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
 cp "$BIN_PATH" "$MACOS_DIR/$APP_NAME"
 cp "$ROOT/Resources/Info.plist" "$CONTENTS/Info.plist"
+# App icon. Generated from Resources/AppIcon.svg by Scripts/make-icon.sh.
+cp "$ROOT/Resources/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
 printf 'APPL????' > "$CONTENTS/PkgInfo"
 
 # Code signature. We sign with a STABLE self-signed identity (created once) so

@@ -34,6 +34,12 @@ Scripts/build-app.sh
 This runs `swift build -c release`, assembles `build/VoiceDictation.app`, and code-signs it with a **stable self-signed identity** (see below).
 We use an SPM executable plus a bundling step (rather than an Xcode project) so the build is fully reproducible from the command line with only the Swift toolchain.
 
+### App icon
+
+`Resources/AppIcon.svg` is the source of the icon: a speech bubble in which a sound wave turns into lines of text.
+`Scripts/make-icon.sh` renders it into every size macOS needs and writes `Resources/AppIcon.icns`; the build only copies that committed file, so building needs no extra tools.
+After editing the SVG, run the script and commit both files.
+
 ### Stable signing so permissions survive rebuilds
 
 macOS records Microphone / Accessibility grants against the app's code-signing identity - specifically the *designated requirement*, which pins the signing certificate. Plain ad-hoc signing (`codesign --sign -`) has no stable certificate: every rebuild gets a fresh code hash, so macOS treats each reinstall as a brand-new app and **forgets the grants**, forcing you to re-approve permissions every time.
