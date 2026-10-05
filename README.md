@@ -1,18 +1,96 @@
-# mac-voice-dictation
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
+    <img alt="Voice Dictation" src="docs/assets/logo-light.svg" width="560">
+  </picture>
+</h1>
 
-<img src="Resources/AppIcon.svg" width="96" align="right" alt="Voice Dictation icon">
+<h3 align="center">Push-to-talk dictation for macOS, transcribed by Whisper on your own Mac.</h3>
 
-Push-to-talk dictation for macOS: **hold a key, speak, release** - the text appears at your cursor in any app.
+<p align="center">
+  <a href="https://github.com/gapsong/mac-voice-dictation/actions/workflows/tests.yml"><img alt="tests" src="https://github.com/gapsong/mac-voice-dictation/actions/workflows/tests.yml/badge.svg"></a>
+  <img alt="macOS 13+" src="https://img.shields.io/badge/macOS-13%2B-000000?logo=apple&logoColor=white">
+  <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple%20Silicon-M1%20and%20later-0f172a">
+  <img alt="Swift" src="https://img.shields.io/badge/Swift-AppKit-F05138?logo=swift&logoColor=white">
+  <img alt="offline" src="https://img.shields.io/badge/runs-offline-22d3ee">
+  <img alt="100% vibe coded" src="https://img.shields.io/badge/100%25-vibe%20coded-8b5cf6">
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green"></a>
+</p>
 
-Speech is transcribed by whisper `large-v3-turbo` on your Mac's own GPU, through [whisper-service](https://github.com/gapsong/whisper-service).
-It is fast (about 0.2 s for a sentence), works offline, and your voice never leaves the Mac.
-A native Swift menu-bar app, no Electron, no account.
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#troubleshooting">Troubleshooting</a> ·
+  <a href="docs/DESIGN.md">Design</a> ·
+  <a href="#status">Status</a>
+</p>
+
+**Hold a key, speak, release** - the text appears at your cursor, in any app.
+Speech is transcribed by Whisper `large-v3-turbo` on your Mac's own GPU, through the companion [whisper-service](https://github.com/gapsong/whisper-service).
+It takes about 0.2 s for a sentence, works offline, and your voice never leaves the Mac.
+A small native Swift menu-bar app: no Electron, no account, no cloud, no subscription.
+
+> [!WARNING]
+> **This project is 100% vibe coded.**
+> Every line - Swift code, scripts, tests and this README - was written by AI coding agents (Claude Code), steered and tested by a human.
+> The author uses it every day on their own Macs, but nobody has audited it line by line.
+>
+> The app asks for **Microphone** and **Accessibility** access.
+> Accessibility lets it watch global key events (for the hotkey) and send Cmd+V to other apps (for pasting).
+> That is powerful access: read the code before you grant it, if that matters to you.
+>
+> Use it at your own risk.
+> It comes with no warranty and no promise of support (see the [MIT license](LICENSE)).
+> Issues and pull requests are welcome, but answers may be slow.
+
+---
+
+## Why this repo exists
+
+Many dictation apps for the Mac are paid, closed source, or send your audio to a cloud.
+This one is small, free, open and local, and built around four rules:
+
+- **Hold to talk.**
+  Key down records, key up pastes.
+  There is no mode to toggle and nothing to forget to switch off.
+- **Whisper quality.**
+  `large-v3-turbo` handles German, English and technical words well, and it runs on the Mac's GPU fast enough to feel instant.
+- **Nothing leaves the Mac.**
+  The app talks only to a server on `127.0.0.1`.
+  No account, no telemetry.
+- **Works in every app.**
+  It pastes the text like you would, so it works in any text field: editors, browsers, chat apps, terminals.
+
+The whole app is about 2,700 lines of Swift, split so that the logic is unit-tested without a screen or a microphone.
+
+## How it works
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/flow-dark.svg">
+    <img alt="Hold the key, record, release, filter, paste. The app warms the model with POST /start on key-down and sends the WAV with POST /transcribe to whisper-service on the same Mac." src="docs/assets/flow-light.svg" width="100%">
+  </picture>
+</p>
+
+1. **Key down.**
+   The app starts recording and, at the same moment, sends `POST /start` so the model warms up while you are still speaking.
+2. **Recording.**
+   A small overlay at the bottom of the screen shows a pulsing red dot.
+3. **Key up.**
+   The audio goes to whisper-service as a 16 kHz mono WAV.
+4. **Filter.**
+   On silence, Whisper likes to answer with subtitle boilerplate such as "Untertitelung des ZDF, 2020".
+   The app drops those and shows "No speech detected" instead of pasting junk.
+5. **Paste.**
+   The text goes to the pasteboard, the app sends Cmd+V to the focused app, and then puts your previous clipboard back.
+
+The details (state model, hotkey state machine, server contract, signing) are in [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Quick start
 
-You need a Mac with Apple Silicon and the Xcode Command Line Tools (`xcode-select --install`; full Xcode is not needed).
+You need a Mac with Apple Silicon (M1 or later) and the Xcode Command Line Tools (`xcode-select --install`; full Xcode is not needed).
 
-**1. The speech server** (one time, downloads the model, ~1.6 GB):
+**1. The speech server** (one time, downloads the model, about 1.6 GB):
 
 ```sh
 git clone https://github.com/gapsong/whisper-service.git
@@ -26,6 +104,8 @@ git clone https://github.com/gapsong/mac-voice-dictation.git
 mac-voice-dictation/Scripts/install.sh
 ```
 
+This builds the app, installs it to `/Applications/VoiceDictation.app` and starts it.
+
 **3. One-time macOS settings** (the install script lists them too):
 
 - Allow the microphone when macOS asks.
@@ -37,108 +117,95 @@ On an external keyboard, use **F13** instead - see [Hotkeys on external keyboard
 
 To update later: `git pull` in both folders and run both install scripts again.
 
-## What it does
+## Usage
 
-- Lives in the menu bar only (no Dock icon). The status icon reflects state: idle, recording, transcribing, inserting, error, or needs-permission.
-- **On-screen recording overlay**: a floating HUD appears at the bottom-centre of your screen while recording / transcribing / inserting, so feedback never depends on the menu-bar icon (which the notch on 15" MacBook Airs can hide). It shows a pulsing red dot while recording and fades out shortly after you finish. See [On-screen feedback](#on-screen-feedback-and-reaching-the-app).
-- **Status/settings window**: a normal window with live status, both permission states (with Grant buttons), a server check, and every setting the menu has. **Re-open the app while it is already running (click it in Finder/Dock, or `open build/VoiceDictation.app` again) to bring this window up** - a dependable way in even when the notch hides the menu-bar icon.
-- **Hold-to-talk**: hold a hotkey to record, release to transcribe and insert. A short debounce ignores accidental taps.
-- **Several hotkeys at once** (default **fn / Globe** *and* **F13**). fn only ever reaches macOS from an Apple keyboard, so an external keyboard needs a trigger of its own - see [Hotkeys on external keyboards](#hotkeys-on-external-keyboards). Holding any armed key records; the hold ends when that same key is released, so the keys never interfere with each other.
-- On hotkey-down it proactively fires `POST /start` so the (asleep-by-default) model warms while you are still speaking.
-- Inserts text by putting it on the pasteboard, synthesizing **Cmd+V** into the focused app, then **restoring the previous pasteboard contents**.
-- **Drops Whisper's silence artifacts.** Handed near-silence, Whisper answers with subtitle boilerplate ("Untertitelung des ZDF, 2020", "Subtitles by the Amara.org community") rather than an empty string. Holding the key without speaking shows "No speech detected" and pastes nothing. See [Silence artifacts](#silence-artifacts).
-- Server URL, hotkeys, language (`de` default, plus `en`/`auto`), and launch-at-login are configurable from the menu and persist across restarts.
+The app lives in the menu bar only (no Dock icon).
+The icon shows the state: idle, recording, transcribing, inserting, error, or a missing permission.
 
-## Requirements
+From the menu you can:
 
-- macOS 13 (Ventura) or later.
-- Swift toolchain (the Xcode **Command Line Tools** are sufficient - a full Xcode install is *not* required).
-- **whisper-service** running on the Mac (`scripts/install.sh` in that repo sets it up as a LaunchAgent on `http://127.0.0.1:9876`). Otherwise the menu shows "Server unreachable (whisper-service running?)".
-  Any other server that speaks the same protocol works too: set its URL in the settings.
+- choose the **hotkeys** (several can be armed at once),
+- choose the **language**: German (the default), English, or Auto-detect,
+- set the **server URL**, if your Whisper server runs somewhere else,
+- turn on **Launch at Login**,
+- run **Check Server**, which shows whether the model is `sleeping` or `ready`,
+- open the **status window**.
 
-## Build
+The status window shows the live status, both permissions (with Grant buttons), the server check, and all the settings.
+If the menu-bar icon is hidden (for example behind the notch on a MacBook), open the app again from Finder or with `open /Applications/VoiceDictation.app`: the running app then shows this window.
 
-`Scripts/install.sh` builds, installs and starts the app in one go.
-To only build:
-
-```sh
-Scripts/build-app.sh
-```
-
-This runs `swift build -c release`, assembles `build/VoiceDictation.app`, and code-signs it with a **stable self-signed identity** (see below).
-We use an SPM executable plus a bundling step (rather than an Xcode project) so the build is fully reproducible from the command line with only the Swift toolchain.
-
-### App icon
-
-`Resources/AppIcon.svg` is the source of the icon: a speech bubble in which a sound wave turns into lines of text.
-`Scripts/make-icon.sh` renders it into every size macOS needs and writes `Resources/AppIcon.icns`; the build only copies that committed file, so building needs no extra tools.
-After editing the SVG, run the script and commit both files.
-
-### Stable signing so permissions survive rebuilds
-
-macOS records Microphone / Accessibility grants against the app's code-signing identity - specifically the *designated requirement*, which pins the signing certificate. Plain ad-hoc signing (`codesign --sign -`) has no stable certificate: every rebuild gets a fresh code hash, so macOS treats each reinstall as a brand-new app and **forgets the grants**, forcing you to re-approve permissions every time.
-
-To avoid that, `Scripts/build-app.sh` signs with a persistent self-signed code-signing identity:
-
-- On the **first** build it creates a self-signed cert named `VoiceDictation Self-Signed` in a small dedicated keychain (`~/Library/Keychains/voicedictation-signing.keychain-db`) with a known local passphrase, and authorises `codesign` to use it (`security set-key-partition-list`). This is **idempotent and prompt-free** - it never touches your login keychain, so it does not ask for your login password.
-- Every **subsequent** build finds and reuses that same identity, so the designated requirement stays constant and your permission grants persist across rebuilds.
-- If a signing identity cannot be created for any reason, the script **falls back to ad-hoc signing** with a warning; the app still runs, but you may need to re-grant permissions after an update.
-
-Only `Scripts/build-app.sh` signs. `swift build` / `swift test` produce only the linker's automatic ad-hoc signature (no keychain access), so day-to-day dev iterations never prompt.
-
-## Run
-
-```sh
-open build/VoiceDictation.app
-```
-
-The app appears in the menu bar (look for the microphone icon). To see logs in the foreground instead:
-
-```sh
-build/VoiceDictation.app/Contents/MacOS/VoiceDictation
-```
-
-## Required permissions
-
-The app needs **two** macOS permissions. The menu shows a clear ⚠ item for whichever is missing.
-
-1. **Microphone** - to record audio (`AVAudioEngine`). Requested automatically on first launch; the system prompt uses the `NSMicrophoneUsageDescription` copy.
-2. **Accessibility** - required for *both* the global hotkey event tap and the synthetic Cmd+V paste. macOS does not prompt for this the same way; grant it in **System Settings → Privacy & Security → Accessibility** and enable **VoiceDictation**. The app opens this pane for you from the menu's "Grant Accessibility access" item, and arms the hotkey automatically once it is granted.
-
-> Because the app is signed with a **stable self-signed identity** (see [Stable signing](#stable-signing-so-permissions-survive-rebuilds)), macOS remembers these grants across rebuilds instead of re-prompting after each reinstall.
-
-### Free up the Globe key (required for the fn hotkey)
-
-One of the two default hotkeys is **fn / Globe**. By default macOS uses that key to show the emoji picker or switch input sources, which would fire every time you dictate. Turn that off once:
-
-**System Settings → Keyboard → "Press 🌐 Globe key to" → "Do Nothing".**
-
-After that, holding fn/Globe cleanly triggers push-to-talk and nothing else. (If you'd rather keep the Globe key's system behavior, switch fn off in the menu's **Hotkeys** submenu and leave another key armed.)
+Settings are kept across restarts and updates.
 
 ## Hotkeys on external keyboards
 
-**fn on a third-party keyboard does not reach macOS at all.** Apple's fn/Globe is not an ordinary key: it travels on a private Apple HID usage page and macOS turns it into the `.maskSecondaryFn` modifier *flag*, which is what the app watches. A third-party keyboard resolves its own fn key inside its firmware as a layer switch and sends nothing to the Mac, so there is no event for any app to see. This is a hardware/firmware fact, not something the app can work around.
+**fn on a third-party keyboard does not reach macOS at all.**
+Apple's fn/Globe key is special: it travels on a private Apple channel.
+Other keyboards handle their fn key inside their own firmware and send nothing to the Mac, so no app can see it.
 
-Verified on a NuPhy Air75 V2: across 666 captured key events the keyboard emitted every letter, Shift, Command and Space, and **never** the fn flag - while the built-in Apple keyboard emitted the fn flag and nothing else.
-
-The fix is a hotkey that travels over standard HID. The app arms **F13** by default alongside fn:
+That is why the app also arms **F13** by default:
 
 1. In your keyboard's own configurator (NuPhy Console, VIA, QMK, Logi Options+, …), remap a key you do not otherwise use - its fn, Right Control, or a spare macro key - to **F13**.
 2. That is it. F13 is already armed, so holding the remapped key starts dictation.
 
-**Why F13-F19.** They exist in the USB HID keyboard page, are absent from Apple keyboards, and macOS binds nothing to them, so nothing else competes for the key. They are also plain keys rather than live modifiers: holding one cannot alter what your other keystrokes mean, unlike holding Right Option (which on the German layout is how you type `@`, `€` and `|`). F14-F19 are selectable too if F13 is already taken.
+F13-F19 work well because Apple keyboards do not have them and macOS binds nothing to them.
+They are also plain keys: holding one does not change what your other keys type, unlike Right Option, which types `@`, `€` and `|` on a German layout.
+F14-F19 and the modifier keys are selectable in the **Hotkeys** menu too.
 
-Modifier keys remain available in the **Hotkeys** submenu if you prefer one, and several hotkeys can be armed at the same time - which is the point, since one Mac usually has both an Apple keyboard and an external one attached.
+## Permissions
 
-### Diagnosing a key that does nothing
+The app needs two macOS permissions.
+The menu shows a ⚠ item for each one that is missing.
 
-A key that never reaches macOS, a key arriving under an unexpected code, and a key correctly ignored all look identical from the UI. Run the binary in the foreground with the hotkey trace on and press the key:
+1. **Microphone**, to record.
+   macOS asks on the first start.
+2. **Accessibility**, for the global hotkey and for the synthetic Cmd+V.
+   macOS does not ask for this one.
+   Turn it on in **System Settings > Privacy & Security > Accessibility**.
+   The menu item "Grant Accessibility access" opens that page, and the app arms the hotkey as soon as access is granted.
+
+The build signs the app with a stable local identity, so macOS keeps these grants when you update.
+
+**Free up the Globe key.**
+By default, macOS uses fn/Globe for the emoji picker or to switch input sources, which would fire every time you dictate.
+Set **System Settings > Keyboard > "Press Globe key to" > "Do Nothing"**.
+If you would rather keep that, turn fn off in the **Hotkeys** menu and use another key.
+
+## What it deliberately is NOT
+
+- **Not a cloud service.**
+  There is no hosted backend and no account.
+  You can point it at another server with the same API, but nothing does that by default.
+- **Not live transcription.**
+  The text appears after you release the key, not word by word while you speak.
+- **Not an AI writing tool.**
+  It pastes what you said.
+  It does not rewrite, summarize or reformat.
+- **Not a signed download.**
+  There is no notarized `.dmg`.
+  You build the app from source with one script, and it is signed with a local self-signed identity.
+
+## Troubleshooting
+
+| What you see | What to do |
+|---|---|
+| "Server unreachable (whisper-service running?)" | Check `curl http://127.0.0.1:9876/health`. If it fails, run `whisper-service/scripts/install.sh` again. |
+| The hotkey does nothing | Check that Accessibility is on for VoiceDictation. On an external keyboard, use F13 (see above). |
+| The emoji picker opens when you press fn | Set "Press Globe key to" to "Do Nothing" (see [Permissions](#permissions)). |
+| "No speech detected" | Whisper heard only silence. Check that the right microphone is the input in System Settings > Sound, then speak while you hold the key. |
+| The text is in the wrong language | Choose English, German or Auto-detect in the **Language** menu. |
+| macOS asks for permissions again after an update | The build fell back to ad-hoc signing. Its output says why; see [Stable code signing](docs/DESIGN.md#stable-code-signing). |
+
+To see the app's log, quit it and run it in the foreground:
 
 ```sh
-VOICEDICTATION_LOG_HOTKEYS=1 build/VoiceDictation.app/Contents/MacOS/VoiceDictation
+/Applications/VoiceDictation.app/Contents/MacOS/VoiceDictation
 ```
 
-Each key event prints its shape, flags, source device, and what the app decided:
+To see what happens to every key press (useful when a key does nothing):
+
+```sh
+VOICEDICTATION_LOG_HOTKEYS=1 /Applications/VoiceDictation.app/Contents/MacOS/VoiceDictation
+```
 
 ```
 [hotkey] keyDown(keyCode: 105) flags=0x20800000 device=0x0 -> began
@@ -146,82 +213,33 @@ Each key event prints its shape, flags, source device, and what the app decided:
 [hotkey] keyDown(keyCode: 51) flags=0x100 device=0x100007c5b -> ignored
 ```
 
-No line at all when you press the key means macOS never saw it - that is the firmware-layer case above. `device=` is the HID registry id, matching the `RegistryID` column of `hidutil list --matching '{"PrimaryUsagePage":1,"PrimaryUsage":6}'`, so you can tell which physical keyboard sent what.
+No line at all when you press the key means macOS never received it - that is the external-keyboard fn case above.
 
-## Silence artifacts
+## Build from source
 
-Whisper was trained on subtitled video, so near-silence does not come back empty - it comes back as the boilerplate that ends a subtitle track. In German that is almost always **"Untertitelung des ZDF, 2020"**; in English, "Subtitles by the Amara.org community" or "Thanks for watching!". The server reports these as ordinary successful transcriptions, so without a filter the app would paste them into whatever you were typing in.
-
-`SilenceArtifactFilter` rejects those whole utterances and the app reports "No speech detected" instead.
-
-It is deliberately narrow. Short polite phrases Whisper also emits on silence - "Vielen Dank.", "Thank you." - are **not** filtered, because you may well dictate exactly those words, and silently swallowing real speech is the worse failure. Sentences that merely mention a broadcaster ("Das lief gestern im ZDF") are kept too, since the patterns are anchored to the whole utterance.
-
-## On-screen feedback and reaching the app
-
-Because the app is menu-bar-only, the notch on a 15" MacBook Air (and a crowded menu bar generally) can hide the status icon - leaving you unable to tell the app is running, see when it is recording, or reach its settings. Two features solve this without depending on the icon:
-
-- **Recording overlay.** A small floating panel appears bottom-centre on the screen under your mouse whenever the app is active: "🎙 Recording…" with a pulsing red dot while recording, "⏳ Warming up server…" if the model is still loading, "✍️ Transcribing…", then "Inserting…", fading out on idle. It also surfaces "⚠ Microphone permission required" / "⚠ Server unreachable" style warnings. The overlay is deliberately **non-activating** - it never takes focus, so your Cmd+V paste still lands in the app you were typing into.
-- **Re-open for the window.** Launching the app again while it is already running opens the **status/settings window** (standard "click the app to get its window" behaviour). From there you can see the current status, grant either permission, check the server, and change the hotkey / language / server URL / launch-at-login. On first launch the app also surfaces itself: it opens this window if a permission is missing, otherwise flashes a brief "Voice Dictation is running" greeting overlay so you know it started.
-
-## Usage
-
-1. Launch the app and grant both permissions, and set "Press Globe key to → Do Nothing" (see above).
-2. On an external keyboard, remap a key to **F13** (see [Hotkeys on external keyboards](#hotkeys-on-external-keyboards)).
-3. Focus any text field in any app.
-4. Hold **fn / Globe** (Apple keyboard) or your **F13** key (external keyboard), speak, and release. The transcription is pasted at the cursor.
-5. Adjust the hotkeys, language, server URL, and launch-at-login from the menu-bar icon.
-6. "Check Server" runs a `/health` probe and shows the server's state (it boots asleep by design).
-
-## Tests
+`Scripts/install.sh` does everything.
+To only build or only test:
 
 ```sh
-Scripts/test.sh
+Scripts/build-app.sh    # swift build -c release, then assembles and signs build/VoiceDictation.app
+Scripts/test.sh         # the unit tests (wraps swift test)
 ```
 
-This wraps `swift test`. With only the Command Line Tools, newer Swift toolchains do not find the bundled `Testing.framework` by themselves ("no such module 'Testing'"); the script points them at it.
+The project is a Swift Package plus a small bundling script, not an Xcode project, so it builds from the command line with only the Command Line Tools.
+How the signing works, what the tests cover, and the manual end-to-end checklist are in [docs/DESIGN.md](docs/DESIGN.md).
 
-Covers:
-- **WAV encoding** - a canonical 16 kHz / mono / 16-bit header plus correct little-endian sample data.
-- **Whisper client request shaping** - URL, method, `Content-Type: audio/wav`, and `X-Language` header for `/health`, `/start`, `/transcribe`.
-- **Client behavior** - 502 backend-down, empty-text, retry-on-not-ready (503 **and** 500) with a bounded give-up, and `waitUntilReady` health-polling (ready-after-N-polls, timeout, and `{"state":"ready"}` without a `ready` flag), exercised with a stub `URLProtocol`.
-- **Overlay view-model** - `AppStatus` → label / accent / pulse mapping and the auto-hide timing policy.
-- **Config persistence** - round-trips through `UserDefaults`.
-- **Live `/health` smoke check** - when the default server (local whisper-service) is running it validates the network path and response decoding against it; otherwise it skips gracefully.
+## Status
 
-## Server contract (reference - implemented by whisper-service)
+- **Works:** daily use on the author's Macs (Apple Silicon, macOS 27), with Apple and external keyboards, in German and English.
+- **Tested automatically:** the core logic (WAV encoding, the HTTP client and its retries, the hotkey state machine, the silence filter, the overlay model, settings).
+  CI builds the app and runs these tests on every push.
+- **Tested by hand only:** the microphone, the global hotkey, the paste and the overlay.
+  macOS does not allow these to run headlessly; [docs/DESIGN.md](docs/DESIGN.md#manual-end-to-end-check) has the checklist.
+- **Not supported:** Intel Macs with the default server (whisper-service needs Apple Silicon), and macOS older than 13.
 
-Default base URL: `http://127.0.0.1:9876`, the local [whisper-service](https://github.com/gapsong/whisper-service). Plain HTTP is allowed for local addresses only (`NSAllowsLocalNetworking` in `Resources/Info.plist`).
+## Related
 
-The old remote server `https://gpuserver.beaver-brotula.ts.net:9443` speaks the same contract. Its cert is **self-signed / not system-trusted**; the app accepts it via a `URLSessionDelegate` scoped to that host only (see `HostTrustDelegate`).
-
-| Endpoint | Method | Notes |
-|---|---|---|
-| `/health` | GET | `{"model","state","ready"}`, `state ∈ {sleeping, ready}`. Boots asleep (0 GPU). |
-| `/start` | POST | Starts loading the model and returns the health body (whisper-service answers at once; well under a second to ready). The app then polls `/health`. Fired on hotkey-down. |
-| `/transcribe` | POST | `Content-Type: audio/wav`, body = mono/16-bit/16 kHz WAV, header `X-Language: de\|en\|auto` → `{"text","language","ms"}`. |
-
-Handled failure modes (visible status, never a crash): HTTP 502 (backend down), empty `text`, network/timeout/unreachable, and **not-yet-ready after `/start`**. The server boots asleep and takes a few seconds to load the model after `/start`; transcribing before then makes it return HTTP 500 ("NoneType has no attribute transcribe"). The app therefore polls `GET /health` until `state == ready` (bounded ~15s, showing "Warming up server…") before sending audio, and additionally retries `/transcribe` on 500/503 with exponential backoff as a backstop. Health decoding tolerates a `ready` field that is absent, treating `{"state":"ready"}` as ready.
-
-## Manual end-to-end verification
-
-The mic / global-hotkey / paste path cannot be exercised headlessly. On a real Mac session:
-
-1. `Scripts/build-app.sh && open build/VoiceDictation.app`.
-2. Grant Microphone (prompt) and Accessibility (System Settings), confirm the menu ⚠ items clear. Set "Press Globe key to → Do Nothing".
-3. Ensure whisper-service is running (`curl http://127.0.0.1:9876/health`); "Check Server" shows `sleeping` or `ready`.
-4. Focus a text field, hold fn/Globe, speak a German phrase, release → text is pasted.
-5. **Overlay**: while holding fn/Globe, confirm the "🎙 Recording…" HUD appears bottom-centre with a pulsing red dot, then progresses to "✍️ Transcribing…"/"Inserting…" (with "⏳ Warming up server…" in between if the model was still asleep) and fades out. Critically, confirm the **frontmost app does not change** when it appears and the text still pastes into your focused field (the overlay is non-activating).
-6. Copy something to the clipboard first, dictate, then paste (Cmd+V) → confirm your original clipboard is back.
-7. **Re-open window**: with the app already running, run `open build/VoiceDictation.app` again (or click it in Finder) → the status/settings window appears centred. Grant a permission from it and confirm the row flips to "✓ Granted"; close it and confirm no permanent Dock icon remains.
-8. Change hotkey/language/server URL/launch-at-login in the window or menu, quit, relaunch → settings persist.
-9. Stop whisper-service (`launchctl bootout gui/$(id -u)/com.gapsong.whisper-service`) and dictate → the menu/overlay shows "Server unreachable", no crash. Start it again with its `scripts/install.sh`.
-
-## Architecture
-
-Clean module split so each layer is independently testable:
-
-- `Sources/DictationCore/` (no AppKit, headless-testable): `WavEncoder`, `WhisperClient` + `WhisperRequestFactory`, `WhisperModels`, `HostTrustDelegate`, `AppConfig` + `ConfigStore`, `AppStatus`, `OverlayViewModel` (maps `AppStatus` → overlay label/accent/pulse + the auto-hide timing policy, unit-tested), and `HotkeyEdgeResolver` (the hold-to-talk state machine over the armed hotkey set, unit-tested).
-- `Sources/VoiceDictation/` (AppKit app): `AudioCapture` (AVAudioEngine → 16 kHz mono Int16), `HotkeyMonitor` (CGEventTap adapter + debounce over `HotkeyEdgeResolver`), `TextInserter` (pasteboard + Cmd+V + restore), `Permissions`, `LaunchAtLogin` (SMAppService), `DictationController` (orchestration; fans status out to multiple observers), `DictationActions` (shared settings mutations), `StatusItemController` (menu), `OverlayController` (non-activating floating HUD), `SettingsWindowController` (status/settings window), `AppDelegate`.
+- [whisper-service](https://github.com/gapsong/whisper-service): the local Whisper server this app talks to.
 
 ## License
 
