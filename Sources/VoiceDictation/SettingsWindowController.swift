@@ -57,7 +57,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     private func buildWindow() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 0),
+            contentRect: NSRect(x: 0, y: 0, width: Self.contentWidth + 40, height: 0),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -95,7 +95,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             content.bottomAnchor.constraint(equalTo: root.bottomAnchor),
             content.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             content.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            content.widthAnchor.constraint(equalToConstant: 420),
+            content.widthAnchor.constraint(equalToConstant: Self.contentWidth + 40),
         ])
         window.contentView = root
         self.window = window
@@ -116,16 +116,29 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         return row
     }
 
+    /// The URL field takes whatever width the two buttons leave, so the row
+    /// always ends at the window's content margin.
     private func serverRow() -> NSView {
         serverField.placeholderString = "http://127.0.0.1:9876"
-        serverField.translatesAutoresizingMaskIntoConstraints = false
-        serverField.widthAnchor.constraint(equalToConstant: 240).isActive = true
+        serverField.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        serverField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         let save = NSButton(title: "Save", target: self, action: #selector(saveServerURL))
         let check = NSButton(title: "Check Server", target: self, action: #selector(checkServer))
         serverResult.font = .systemFont(ofSize: 11)
         serverResult.textColor = .secondaryLabelColor
-        return hStack([serverField, save, check])
+        showServerResult("")
+
+        let row = hStack([serverField, save, check])
+        row.translatesAutoresizingMaskIntoConstraints = false
+        row.widthAnchor.constraint(equalToConstant: Self.contentWidth).isActive = true
+        return row
+    }
+
+    /// An empty result line is hidden, so it takes no space in the stack.
+    private func showServerResult(_ text: String) {
+        serverResult.stringValue = text
+        serverResult.isHidden = text.isEmpty
     }
 
     private func launchRow() -> NSView {
@@ -134,31 +147,34 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         return launchAtLogin
     }
 
-    /// Hotkeys as a checkbox list: arming several at once is the point, since
-    /// fn only ever reaches macOS from an Apple keyboard and an external
-    /// keyboard needs a trigger of its own.
+    /// Hotkeys as checkboxes: arming several at once is the point, since fn
+    /// only ever reaches macOS from an Apple keyboard and an external keyboard
+    /// needs a trigger of its own. Modifier keys and F13-F19 sit in two columns
+    /// so the window stays short enough for small screens.
     private func hotkeySection() -> NSView {
-        var rows: [NSView] = [sectionLabel("Hotkeys (hold any to dictate)")]
-
         for (index, button) in hotkeyChecks.enumerated() {
             button.target = self
             button.action = #selector(toggleHotkey(_:))
             button.tag = index
-            rows.append(button)
-
-            // The F13-F19 block needs a word of explanation: it is empty on
-            // every real keyboard until the user remaps a key onto it.
-            if HotkeyConfig.presets[index] == HotkeyConfig.modifierPresets.last {
-                rows.append(hint("For an external keyboard, remap one of its keys"))
-                rows.append(hint("onto F13-F19 in the keyboard's own configurator."))
-            }
         }
+        // hotkeyChecks follows HotkeyConfig.presets: the modifiers, then F13-F19.
+        let modifierCount = HotkeyConfig.modifierPresets.count
+        let columns = NSStackView(views: [
+            vStack(Array(hotkeyChecks[..<modifierCount]), spacing: 4),
+            vStack(Array(hotkeyChecks[modifierCount...]), spacing: 4),
+        ])
+        columns.orientation = .horizontal
+        columns.alignment = .top
+        columns.spacing = 40
 
-        let stack = NSStackView(views: rows)
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 4
-        return stack
+        // F13-F19 needs a word of explanation: no real keyboard sends them
+        // until the user remaps a key onto one.
+        return vStack([
+            sectionLabel("Hotkeys (hold any to dictate)"),
+            columns,
+            hint("For an external keyboard, remap one of its keys"),
+            hint("onto F13-F19 in the keyboard's own configurator."),
+        ], spacing: 4)
     }
 
     private func hint(_ text: String) -> NSTextField {
@@ -221,15 +237,15 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     @objc private func saveServerURL() {
         actions.setServerURL(serverField.stringValue)
-        serverResult.stringValue = ""
+        showServerResult("")
     }
 
     @objc private func checkServer() {
-        serverResult.stringValue = "Checking…"
+        showServerResult("Checking…")
         Task { [weak self] in
             guard let self else { return }
             let line = await self.actions.checkServer()
-            self.serverResult.stringValue = line
+            self.showServerResult(line)
         }
     }
 
@@ -271,6 +287,17 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     // MARK: - Small view helpers
 
+    /// Width of the content inside the window's 20 pt margins.
+    private static let contentWidth: CGFloat = 380
+
+    private func vStack(_ views: [NSView], spacing: CGFloat) -> NSStackView {
+        let stack = NSStackView(views: views)
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = spacing
+        return stack
+    }
+
     private func hStack(_ views: [NSView]) -> NSStackView {
         let stack = NSStackView(views: views)
         stack.orientation = .horizontal
@@ -290,7 +317,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         let line = NSBox()
         line.boxType = .separator
         line.translatesAutoresizingMaskIntoConstraints = false
-        line.widthAnchor.constraint(equalToConstant: 380).isActive = true
+        line.widthAnchor.constraint(equalToConstant: Self.contentWidth).isActive = true
         return line
     }
 }

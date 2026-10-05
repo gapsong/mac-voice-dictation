@@ -52,8 +52,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Keep the persisted launch-at-login preference in sync with the OS.
         _ = LaunchAtLogin.set(controller.config.launchAtLogin)
 
-        requestPermissionsAndArm()
+        // Window first, then the permission prompts: the system's Accessibility
+        // prompt must end up on top of the window, not hidden behind it.
         surfacePresenceOnFirstLaunch()
+        requestPermissionsAndArm()
     }
 
     /// Requests Microphone up front and arms the hotkey tap. Because the tap

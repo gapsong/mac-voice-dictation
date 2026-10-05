@@ -207,9 +207,13 @@ final class OverlayController {
             ctx.duration = OverlayViewModel.fadeDuration
             panel.animator().alphaValue = 0
         }, completionHandler: { [weak self] in
-            guard let self, self.visibilityGeneration == generation else { return }
-            self.dot.stopPulsing()
-            self.panel.orderOut(nil)
+            // AppKit runs this handler on the main thread, but the SDK types it
+            // as a plain Sendable closure; state that isolation explicitly.
+            MainActor.assumeIsolated {
+                guard let self, self.visibilityGeneration == generation else { return }
+                self.dot.stopPulsing()
+                self.panel.orderOut(nil)
+            }
         })
     }
 }
