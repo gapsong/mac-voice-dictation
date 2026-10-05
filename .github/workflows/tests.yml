@@ -1,0 +1,21 @@
+# Build the app bundle and run the unit tests on every push to main and every pull request.
+# The live /health smoke test skips here, because no whisper-service runs in CI.
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the app bundle
+        run: Scripts/build-app.sh
+      - name: Test
+        # Plain swift test: the runner has full Xcode, so Scripts/test.sh's
+        # Command Line Tools workaround is not needed here.
+        run: swift test
