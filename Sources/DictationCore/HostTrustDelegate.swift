@@ -11,8 +11,7 @@ import Foundation
 /// is still validated normally.
 public final class HostTrustDelegate: NSObject, URLSessionDelegate {
 
-    /// Host for which the self-signed certificate is accepted (e.g.
-    /// `gpuserver.beaver-brotula.ts.net`).
+    /// Host for which the self-signed certificate is accepted.
     private let trustedHost: String
 
     public init(trustedHost: String) {

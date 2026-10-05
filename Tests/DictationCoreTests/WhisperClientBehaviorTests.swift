@@ -39,7 +39,7 @@ final class StubURLProtocol: URLProtocol {
 @Suite(.serialized)
 struct WhisperClientBehaviorTests {
 
-    private let baseURL = URL(string: "https://gpuserver.beaver-brotula.ts.net:9443")!
+    private let baseURL = URL(string: "https://whisper.example.com:9443")!
 
     private func makeClient(_ responses: [(Int, Data)]) -> WhisperClient {
         StubURLProtocol.responses = responses

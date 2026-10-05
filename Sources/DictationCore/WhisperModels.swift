@@ -75,7 +75,7 @@ public enum WhisperError: Error, Equatable, Sendable {
     /// Response body could not be decoded.
     case decoding
     /// Network failure / timeout / host unreachable (e.g. whisper-service not
-    /// running, or a remote server while off the tailnet).
+    /// running).
     case unreachable(String)
 
     public var userMessage: String {

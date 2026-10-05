@@ -14,7 +14,7 @@ import Foundation
     @Test func liveHealthOrSkip() async throws {
         let url = URL(string: AppConfig.defaultServerURL)!
 
-        // Short timeout so an off-tailnet run skips quickly instead of hanging.
+        // Short timeout so a run without the server skips quickly instead of hanging.
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 6
         config.waitsForConnectivity = false
