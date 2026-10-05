@@ -271,7 +271,8 @@ How the signing works, what the tests cover, and the manual end-to-end checklist
 
 ## Author
 
-Built by [@gapsong](https://github.com/gapsong), who builds small tools for his own daily work and publishes the ones that are useful to others.
+Built by [@gapsong](https://github.com/gapsong), an ML engineer working on LLM compression and quantization ([QA-LoRA in 🤗 PEFT](https://github.com/huggingface/peft/pull/2571), [qpeft](https://github.com/gapsong/qpeft)).
+Making large models run fast on small hardware is his field; this app is that idea applied to his own daily work.
 
 ## License
 
