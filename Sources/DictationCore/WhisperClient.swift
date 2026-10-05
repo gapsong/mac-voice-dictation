@@ -39,13 +39,12 @@ public enum WhisperRequestFactory {
     }
 }
 
-/// Async client for the remote whisper service.
+/// Async client for the whisper server.
 ///
 /// Handles the documented failure modes without ever trapping: 502 backend
 /// down, empty text, network/timeout, and the not-yet-ready-after-`/start` race
 /// (gated by `waitUntilReady` and ridden out by a bounded retry loop in
-/// `transcribe`). The scoped `HostTrustDelegate` accepts the server's
-/// self-signed certificate for the configured host only.
+/// `transcribe`). TLS certificates get the system's normal validation.
 public final class WhisperClient: Sendable {
 
     private let baseURL: URL
@@ -54,8 +53,8 @@ public final class WhisperClient: Sendable {
 
     /// - Parameters:
     ///   - baseURL: Server base, e.g. `http://127.0.0.1:9876`.
-    ///   - session: Inject a custom session for tests; defaults to one wired to
-    ///     a `HostTrustDelegate` scoped to `baseURL`'s host.
+    ///   - session: Inject a custom session for tests; defaults to an ephemeral
+    ///     session with a 30 s request timeout.
     public init(baseURL: URL, session: URLSession? = nil) {
         self.baseURL = baseURL
         if let session {
@@ -65,12 +64,7 @@ public final class WhisperClient: Sendable {
             let config = URLSessionConfiguration.ephemeral
             config.timeoutIntervalForRequest = 30
             config.waitsForConnectivity = false
-            let delegate = HostTrustDelegate(trustedHost: baseURL.host ?? "")
-            self.session = URLSession(
-                configuration: config,
-                delegate: delegate,
-                delegateQueue: nil
-            )
+            self.session = URLSession(configuration: config)
             self.ownsSession = true
         }
     }

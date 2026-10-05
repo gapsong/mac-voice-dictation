@@ -18,11 +18,7 @@ import Foundation
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 6
         config.waitsForConnectivity = false
-        let session = URLSession(
-            configuration: config,
-            delegate: HostTrustDelegate(trustedHost: url.host ?? ""),
-            delegateQueue: nil
-        )
+        let session = URLSession(configuration: config)
         let client = WhisperClient(baseURL: url, session: session)
 
         do {

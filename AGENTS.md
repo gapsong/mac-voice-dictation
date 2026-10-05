@@ -43,9 +43,9 @@ Two, both surfaced in the menu as ⚠ items when missing:
 
 The default server is `http://127.0.0.1:9876`, the local [whisper-service](https://github.com/gapsong/whisper-service) (MLX on the Mac's GPU, LaunchAgent `com.gapsong.whisper-service`). Plain HTTP to it is allowed by `NSAllowsLocalNetworking` in `Resources/Info.plist`, which covers local addresses only. If it is not running, the app shows "Server unreachable (whisper-service running?)"; the live `/health` test in `swift test` skips gracefully.
 
-## Self-signed cert handling
+## TLS
 
-A remote server with a self-signed cert is accepted via `HostTrustDelegate` (a `URLSessionDelegate`) scoped to the configured host only - any other host falls through to default validation. ATS is not disabled globally.
+Plain HTTP is allowed for local addresses only (`NSAllowsLocalNetworking`). A remote server must use HTTPS with a certificate the system trusts: the app does no custom certificate handling, and ATS is not disabled. Do not add a trust-everything `URLSessionDelegate` - with a user-configurable server URL it would turn off certificate validation for whatever host the user types in.
 
 ## Server contract (implemented by whisper-service - change it there, not here)
 
@@ -77,7 +77,7 @@ Whisper was trained on subtitled video, so near-silence yields the boilerplate t
 
 ## Architecture
 
-- `Sources/DictationCore/` - no AppKit, headless-unit-testable: `WavEncoder`, `WhisperClient`/`WhisperRequestFactory`, `WhisperModels`, `HostTrustDelegate`, `AppConfig`/`ConfigStore`, `AppStatus` (the shared state enum - pure Foundation so it lives here, not in the AppKit target), `OverlayViewModel` (maps `AppStatus` → overlay label/accent/pulse and the auto-hide timing policy).
+- `Sources/DictationCore/` - no AppKit, headless-unit-testable: `WavEncoder`, `WhisperClient`/`WhisperRequestFactory`, `WhisperModels`, `AppConfig`/`ConfigStore`, `AppStatus` (the shared state enum - pure Foundation so it lives here, not in the AppKit target), `OverlayViewModel` (maps `AppStatus` → overlay label/accent/pulse and the auto-hide timing policy).
 - `Sources/VoiceDictation/` - AppKit app: `AudioCapture` (AVAudioEngine → 16 kHz mono Int16 via `AVAudioConverter`), `HotkeyMonitor` (CGEventTap; dispatches on `HotkeyTrigger`), `TextInserter` (pasteboard + Cmd+V + restore prior clipboard), `Permissions`, `LaunchAtLogin` (`SMAppService`, macOS 13+), `DictationController` (orchestration), `DictationActions` (the one shared set of settings mutations, used by both the menu and the settings window), `StatusItemController` (menu), `OverlayController` (non-activating floating HUD), `SettingsWindowController` (status/settings window), `AppDelegate`, `main.swift`.
 
 Config (`AppConfig`) persists as one JSON blob in `UserDefaults`: server URL, hotkey, language, launch-at-login.
