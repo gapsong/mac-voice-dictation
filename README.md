@@ -125,7 +125,7 @@ The icon shows the state: idle, recording, transcribing, inserting, error, or a 
 From the menu you can:
 
 - choose the **hotkeys** (several can be armed at once),
-- choose the **language**: German (the default), English, or Auto-detect,
+- choose the **language**: Auto-detect (the default), German, or English,
 - set the **server URL**, if your Whisper server runs somewhere else,
 - turn on **Launch at Login**,
 - run **Check Server**, which shows whether the model is `sleeping` or `ready`,
@@ -192,7 +192,7 @@ If you would rather keep that, turn fn off in the **Hotkeys** menu and use anoth
 | The hotkey does nothing | Check that Accessibility is on for VoiceDictation. On an external keyboard, use F13 (see above). |
 | The emoji picker opens when you press fn | Set "Press Globe key to" to "Do Nothing" (see [Permissions](#permissions)). |
 | "No speech detected" | Whisper heard only silence. Check that the right microphone is the input in System Settings > Sound, then speak while you hold the key. |
-| The text is in the wrong language | Choose English, German or Auto-detect in the **Language** menu. |
+| The text is in the wrong language | Auto-detect can guess wrong on very short phrases. Choose your language in the **Language** menu. |
 | macOS asks for permissions again after an update | The build fell back to ad-hoc signing. Its output says why; see [Stable code signing](docs/DESIGN.md#stable-code-signing). |
 
 To see the app's log, quit it and run it in the foreground:

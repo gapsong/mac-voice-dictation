@@ -30,25 +30,13 @@
     <string>Voice Dictation records your microphone while you hold the push-to-talk hotkey, then sends that audio to the whisper server for transcription.</string>
 
     <!-- ATS: NSAllowsLocalNetworking lets the app reach the local
-         whisper-service over plain HTTP on 127.0.0.1 (default server). The
-         gpuserver entry is a narrow exception kept for switching back to the
-         remote server: its reverse proxy presents a self-signed certificate,
-         which we still pin in code to that host via a scoped URLSession
-         delegate. ATS is not disabled globally. -->
+         whisper-service over plain HTTP on 127.0.0.1 (default server).
+         Remote servers must use HTTPS with a valid certificate.
+         ATS is not disabled globally. -->
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsLocalNetworking</key>
         <true/>
-        <key>NSExceptionDomains</key>
-        <dict>
-            <key>gpuserver.beaver-brotula.ts.net</key>
-            <dict>
-                <key>NSExceptionAllowsInsecureHTTPLoads</key>
-                <true/>
-                <key>NSIncludesSubdomains</key>
-                <false/>
-            </dict>
-        </dict>
     </dict>
 </dict>
 </plist>

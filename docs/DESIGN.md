@@ -11,7 +11,6 @@ The code is split in two modules, so that everything worth testing can be tested
   - `WavEncoder`: 16 kHz / mono / 16-bit PCM WAV.
   - `WhisperClient` and `WhisperRequestFactory`: the HTTP client for the server contract below.
   - `WhisperModels`: the response types.
-  - `HostTrustDelegate`: accepts a self-signed TLS certificate, but only for the configured host.
   - `AppConfig` and `ConfigStore`: the settings, stored as one JSON blob in `UserDefaults`.
   - `AppStatus`: the one shared state enum.
   - `OverlayViewModel`: maps `AppStatus` to the overlay's label, accent and pulse, plus the auto-hide timing.
@@ -92,6 +91,7 @@ Two rules keep the filter safe:
 The app talks to [whisper-service](https://github.com/gapsong/whisper-service) on `http://127.0.0.1:9876` by default.
 Any server that implements these three endpoints works; set its URL in the settings.
 Plain HTTP is allowed for local addresses only (`NSAllowsLocalNetworking` in `Resources/Info.plist`).
+A remote server must use HTTPS with a certificate the system trusts.
 
 | Endpoint | Method | Notes |
 |---|---|---|

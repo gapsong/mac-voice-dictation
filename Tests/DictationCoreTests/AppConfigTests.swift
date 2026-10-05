@@ -7,7 +7,7 @@ import Foundation
     @Test func defaultsMatchContract() {
         let config = AppConfig.default
         #expect(config.serverBaseURLString == "http://127.0.0.1:9876")
-        #expect(config.language == .de)
+        #expect(config.language == .auto)
         #expect(config.hotkeys == [.fnGlobe, .f13])
         #expect(config.launchAtLogin == false)
     }

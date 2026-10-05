@@ -4,19 +4,19 @@ import Foundation
 
 @Suite struct WhisperRequestFactoryTests {
 
-    private let baseURL = URL(string: "https://gpuserver.beaver-brotula.ts.net:9443")!
+    private let baseURL = URL(string: "https://whisper.example.com:9443")!
 
     @Test func healthRequestShape() {
         let request = WhisperRequestFactory.healthRequest(baseURL: baseURL)
         #expect(request.httpMethod == "GET")
-        #expect(request.url?.absoluteString == "https://gpuserver.beaver-brotula.ts.net:9443/health")
+        #expect(request.url?.absoluteString == "https://whisper.example.com:9443/health")
         #expect(request.httpBody == nil)
     }
 
     @Test func startRequestShape() {
         let request = WhisperRequestFactory.startRequest(baseURL: baseURL)
         #expect(request.httpMethod == "POST")
-        #expect(request.url?.absoluteString == "https://gpuserver.beaver-brotula.ts.net:9443/start")
+        #expect(request.url?.absoluteString == "https://whisper.example.com:9443/start")
     }
 
     @Test func transcribeRequestShape() {
@@ -28,7 +28,7 @@ import Foundation
         )
 
         #expect(request.httpMethod == "POST")
-        #expect(request.url?.absoluteString == "https://gpuserver.beaver-brotula.ts.net:9443/transcribe")
+        #expect(request.url?.absoluteString == "https://whisper.example.com:9443/transcribe")
         #expect(request.value(forHTTPHeaderField: "Content-Type") == "audio/wav")
         #expect(request.value(forHTTPHeaderField: "X-Language") == "de")
         #expect(request.httpBody == wav)

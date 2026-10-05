@@ -123,8 +123,7 @@ public struct AppConfig: Codable, Equatable, Sendable {
     }
 
     /// Default server is the local whisper-service on this Mac
-    /// (github.com/gapsong/whisper-service); German is the default language to
-    /// match the BikeOffice dictation usage.
+    /// (github.com/gapsong/whisper-service).
     public static let defaultServerURL = "http://127.0.0.1:9876"
 
     /// fn/Globe covers the built-in Apple keyboard; F13 covers every external
@@ -134,7 +133,7 @@ public struct AppConfig: Codable, Equatable, Sendable {
 
     public static let `default` = AppConfig(
         serverBaseURLString: defaultServerURL,
-        language: .de,
+        language: .auto,
         hotkeys: defaultHotkeys,
         launchAtLogin: false
     )

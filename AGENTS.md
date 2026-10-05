@@ -4,7 +4,7 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 
 ## What this is
 
-A native macOS menu-bar push-to-talk dictation app (Swift/AppKit). Hold a global hotkey → record mic → send a WAV to the remote whisper service → paste the transcription at the focused app's cursor. Mac counterpart of the BikeOffice Android dictation, sharing the same whisper backend.
+A native macOS menu-bar push-to-talk dictation app (Swift/AppKit). Hold a global hotkey → record mic → send a WAV to the local whisper-service → paste the transcription at the focused app's cursor.
 
 ## Build / run / test
 
@@ -43,16 +43,16 @@ Two, both surfaced in the menu as ⚠ items when missing:
 
 The default server is `http://127.0.0.1:9876`, the local [whisper-service](https://github.com/gapsong/whisper-service) (MLX on the Mac's GPU, LaunchAgent `com.gapsong.whisper-service`). Plain HTTP to it is allowed by `NSAllowsLocalNetworking` in `Resources/Info.plist`, which covers local addresses only. If it is not running, the app shows "Server unreachable (whisper-service running?)"; the live `/health` test in `swift test` skips gracefully.
 
-## Self-signed cert handling (remote gpuserver only)
+## TLS
 
-The old remote server at `https://gpuserver.beaver-brotula.ts.net:9443` presents a cert the system does **not** trust (reference client uses `curl -sk`). We accept it via `HostTrustDelegate` (a `URLSessionDelegate`) scoped to the configured host only - any other host falls through to default validation. `Resources/Info.plist` keeps a narrow ATS exception for that host only; ATS is not disabled globally. Using it requires the Mac to be on the tailnet.
+Plain HTTP is allowed for local addresses only (`NSAllowsLocalNetworking`). A remote server must use HTTPS with a certificate the system trusts: the app does no custom certificate handling, and ATS is not disabled. Do not add a trust-everything `URLSessionDelegate` - with a user-configurable server URL it would turn off certificate validation for whatever host the user types in.
 
 ## Server contract (implemented by whisper-service - change it there, not here)
 
-Default server: `http://127.0.0.1:9876` (whisper-service; uvicorn; model `large-v3-turbo`). The gpuserver speaks the same contract.
+Default server: `http://127.0.0.1:9876` (whisper-service; uvicorn; model `large-v3-turbo`). Any server with the same three endpoints works.
 
 - `GET /health` → `{"model","state","ready"}`, `state ∈ {sleeping, ready}`. **Boots asleep by design** (0 GPU).
-- `POST /start` → starts loading the model and returns the current health body (whisper-service answers at once; the gpuserver blocked until `{"state":"ready","ready":true}`). Either way the app then polls `/health`. Fired on hotkey-**down** so the model warms while the user speaks.
+- `POST /start` → starts loading the model and returns the current health body (whisper-service answers at once; other servers may block until `{"state":"ready","ready":true}`). Either way the app then polls `/health`. Fired on hotkey-**down** so the model warms while the user speaks.
 - `POST /transcribe` → `Content-Type: audio/wav`, body = **mono / 16-bit PCM / 16 kHz** WAV, header `X-Language: de|en|auto` → `{"text","language","ms"}`.
 - Handled failure modes (visible status, never a crash): HTTP 502 (backend down), empty `text`, network/timeout/unreachable, and the warm-up race (below).
 
@@ -77,7 +77,7 @@ Whisper was trained on subtitled video, so near-silence yields the boilerplate t
 
 ## Architecture
 
-- `Sources/DictationCore/` - no AppKit, headless-unit-testable: `WavEncoder`, `WhisperClient`/`WhisperRequestFactory`, `WhisperModels`, `HostTrustDelegate`, `AppConfig`/`ConfigStore`, `AppStatus` (the shared state enum - pure Foundation so it lives here, not in the AppKit target), `OverlayViewModel` (maps `AppStatus` → overlay label/accent/pulse and the auto-hide timing policy).
+- `Sources/DictationCore/` - no AppKit, headless-unit-testable: `WavEncoder`, `WhisperClient`/`WhisperRequestFactory`, `WhisperModels`, `AppConfig`/`ConfigStore`, `AppStatus` (the shared state enum - pure Foundation so it lives here, not in the AppKit target), `OverlayViewModel` (maps `AppStatus` → overlay label/accent/pulse and the auto-hide timing policy).
 - `Sources/VoiceDictation/` - AppKit app: `AudioCapture` (AVAudioEngine → 16 kHz mono Int16 via `AVAudioConverter`), `HotkeyMonitor` (CGEventTap; dispatches on `HotkeyTrigger`), `TextInserter` (pasteboard + Cmd+V + restore prior clipboard), `Permissions`, `LaunchAtLogin` (`SMAppService`, macOS 13+), `DictationController` (orchestration), `DictationActions` (the one shared set of settings mutations, used by both the menu and the settings window), `StatusItemController` (menu), `OverlayController` (non-activating floating HUD), `SettingsWindowController` (status/settings window), `AppDelegate`, `main.swift`.
 
 Config (`AppConfig`) persists as one JSON blob in `UserDefaults`: server URL, hotkey, language, launch-at-login.
