@@ -133,7 +133,7 @@ public struct AppConfig: Codable, Equatable, Sendable {
 
     public static let `default` = AppConfig(
         serverBaseURLString: defaultServerURL,
-        language: .de,
+        language: .auto,
         hotkeys: defaultHotkeys,
         launchAtLogin: false
     )
