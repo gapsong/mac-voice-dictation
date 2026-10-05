@@ -13,7 +13,7 @@
   <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple%20Silicon-M1%20and%20later-0f172a">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-AppKit-F05138?logo=swift&logoColor=white">
   <img alt="offline" src="https://img.shields.io/badge/runs-offline-22d3ee">
-  <img alt="100% vibe coded" src="https://img.shields.io/badge/100%25-vibe%20coded-8b5cf6">
+  <img alt="Vibe coded with Claude Code" src="https://img.shields.io/badge/vibe%20coded%20with-Claude%20Code-D97757?logo=claude&logoColor=white">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green"></a>
 </p>
 
@@ -30,10 +30,11 @@ Speech is transcribed by Whisper `large-v3-turbo` on your Mac's own GPU, through
 It takes about 0.2 s for a sentence, works offline, and your voice never leaves the Mac.
 A small native Swift menu-bar app: no Electron, no account, no cloud, no subscription.
 
-> [!WARNING]
-> **This project is 100% vibe coded.**
-> Every line - Swift code, scripts, tests and this README - was written by AI coding agents (Claude Code), steered and tested by a human.
-> The author uses it every day on their own Macs, but nobody has audited it line by line.
+> [!NOTE]
+> **Vibe coded with Claude Code - and engineered like a real product.**
+> The author sets the direction, the design and the quality bar; AI coding agents (Claude Code) write the code, the scripts, the tests and these docs.
+> Every change runs through unit tests and CI, and the install path was tested end to end on a clean macOS VM.
+> It is a tool the author uses every day, not a product with a line-by-line security audit.
 >
 > The app asks for **Microphone** and **Accessibility** access.
 > Accessibility lets it watch global key events (for the hotkey) and send Cmd+V to other apps (for pasting).
@@ -62,6 +63,33 @@ This one is small, free, open and local, and built around four rules:
   It pastes the text like you would, so it works in any text field: editors, browsers, chat apps, terminals.
 
 The whole app is about 2,700 lines of Swift, split so that the logic is unit-tested without a screen or a microphone.
+
+## Engineering highlights
+
+The app is small, but a few problems in it are not:
+
+- **Permissions that survive updates.**
+  macOS forgets Microphone and Accessibility grants whenever an ad-hoc signed app is rebuilt.
+  The build creates a persistent self-signed identity in its own keychain, so grants stay across updates, with no password prompt and no Xcode project.
+  See [Stable code signing](docs/DESIGN.md#stable-code-signing).
+- **Several hotkeys, one state machine.**
+  fn/Globe and F13-F19 are armed at once, and a hold belongs to the key that started it.
+  The logic is a pure, unit-tested state machine; the AppKit event tap is only a thin adapter.
+  Why external keyboards can never send fn was measured at the HID level, not guessed.
+  See [Hotkeys](docs/DESIGN.md#hotkeys).
+- **No waiting for the model.**
+  The app wakes the server on key-down, so the model loads while you speak.
+  A health gate and bounded retries cover the race between "loading" and "ready".
+  See [The warm-up race](docs/DESIGN.md#the-warm-up-race).
+- **No hallucinated text.**
+  On silence, Whisper invents subtitle credits like "Untertitelung des ZDF, 2020".
+  whisper-service cuts recordings to speech with Silero VAD before Whisper runs, and the app drops the known artifacts as a second line of defense, without ever dropping real speech.
+  See [Silence artifacts](docs/DESIGN.md#silence-artifacts).
+- **The paste lands where you typed.**
+  The recording overlay is a non-activating panel, so it never steals focus from the app you dictate into.
+  See [The overlay must never take focus](docs/DESIGN.md#the-overlay-must-never-take-focus).
+- **Small and tested.**
+  About 2,700 lines of native Swift, 78 unit tests, CI on every push, and no dependencies outside Apple's frameworks.
 
 ## How it works
 
@@ -240,6 +268,10 @@ How the signing works, what the tests cover, and the manual end-to-end checklist
 ## Related
 
 - [whisper-service](https://github.com/gapsong/whisper-service): the local Whisper server this app talks to.
+
+## Author
+
+Built by [@gapsong](https://github.com/gapsong), who builds small tools for his own daily work and publishes the ones that are useful to others.
 
 ## License
 
