@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="380" viewBox="0 0 1000 380" role="img" aria-label="How Voice Dictation works: hold a key, record, release, whisper-service transcribes on the Mac, filter, paste">
+  <!-- How it works (light theme). flow-light.svg and flow-dark.svg differ only in colors. -->
+  <defs>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#6b7280"/></marker>
+    <marker id="arrowAccent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#7c3aed"/></marker>
+  </defs>
+  <rect x="10" y="10" width="980" height="360" rx="16" fill="#f9fafb" stroke="#d1d5db" stroke-width="1.5"/>
+  <text x="30" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="18" font-weight="700" fill="#1f2937" text-anchor="start">Your Mac</text>
+  <text x="118" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#6b7280" text-anchor="start">audio and text never leave it</text>
+  <text x="30" y="82" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#9ca3af" text-anchor="start">VOICEDICTATION.APP · MENU BAR</text>
+  <rect x="30" y="96" width="170" height="66" rx="10" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+  <circle cx="52" cy="120" r="11" fill="url(#accent)"/>
+  <text x="52" y="124.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">1</text>
+  <text x="70" y="125" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#1f2937" text-anchor="start">Hold the key</text>
+  <text x="44" y="148" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6b7280" text-anchor="start">fn / Globe or F13</text>
+  <line x1="202" y1="129" x2="218" y2="129" stroke="#6b7280" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="220" y="96" width="170" height="66" rx="10" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+  <circle cx="242" cy="120" r="11" fill="url(#accent)"/>
+  <text x="242" y="124.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">2</text>
+  <text x="260" y="125" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#1f2937" text-anchor="start">Record</text>
+  <text x="234" y="148" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6b7280" text-anchor="start">mic, 16 kHz mono WAV</text>
+  <line x1="392" y1="129" x2="408" y2="129" stroke="#6b7280" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="410" y="96" width="170" height="66" rx="10" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+  <circle cx="432" cy="120" r="11" fill="url(#accent)"/>
+  <text x="432" y="124.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">3</text>
+  <text x="450" y="125" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#1f2937" text-anchor="start">Release</text>
+  <text x="424" y="148" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6b7280" text-anchor="start">stop and send</text>
+  <line x1="582" y1="129" x2="598" y2="129" stroke="#6b7280" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="600" y="96" width="170" height="66" rx="10" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+  <circle cx="622" cy="120" r="11" fill="url(#accent)"/>
+  <text x="622" y="124.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">4</text>
+  <text x="640" y="125" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#1f2937" text-anchor="start">Filter</text>
+  <text x="614" y="148" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6b7280" text-anchor="start">drop silence artifacts</text>
+  <line x1="772" y1="129" x2="788" y2="129" stroke="#6b7280" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="790" y="96" width="170" height="66" rx="10" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+  <circle cx="812" cy="120" r="11" fill="url(#accent)"/>
+  <text x="812" y="124.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">5</text>
+  <text x="830" y="125" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#1f2937" text-anchor="start">Paste</text>
+  <text x="804" y="148" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6b7280" text-anchor="start">Cmd+V, clipboard restored</text>
+  <rect x="60" y="270" width="700" height="72" rx="10" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="80" y="300" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#1f2937" text-anchor="start">whisper-service</text>
+  <text x="212" y="300" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#6b7280" text-anchor="start">whisper large-v3-turbo on the Mac's GPU (MLX)</text>
+  <text x="80" y="324" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" font-weight="400" fill="#6b7280" text-anchor="start">http://127.0.0.1:9876 · sleeps until /start, about 0.2 s per sentence</text>
+  <line x1="115" y1="164" x2="115" y2="266" stroke="#6b7280" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="125" y="214" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" font-weight="600" fill="#1f2937" text-anchor="start">POST /start</text>
+  <text x="125" y="231" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#6b7280" text-anchor="start">warm the model while you speak</text>
+  <line x1="495" y1="164" x2="495" y2="266" stroke="#6b7280" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="505" y="214" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" font-weight="600" fill="#1f2937" text-anchor="start">POST /transcribe</text>
+  <text x="505" y="231" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#6b7280" text-anchor="start">the WAV</text>
+  <line x1="685" y1="268" x2="685" y2="166" stroke="#7c3aed" stroke-width="1.6" marker-end="url(#arrowAccent)"/>
+  <text x="695" y="214" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" font-weight="600" fill="#7c3aed" text-anchor="start">{ text }</text>
+</svg>

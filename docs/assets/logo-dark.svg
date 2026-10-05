@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="180" viewBox="0 0 720 180" role="img" aria-label="Voice Dictation">
+  <!--
+    README logo (dark theme): the app icon next to the wordmark.
+    The icon repeats the shapes of Resources/AppIcon.svg at 140 px; keep both in step.
+    logo-light.svg and logo-dark.svg differ only in the two text colors and the tile outline.
+  -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#1e3a5f"/>
+    </linearGradient>
+    <linearGradient id="bubble" gradientUnits="userSpaceOnUse" x1="220" y1="270" x2="804" y2="790">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Icon: the 824 px body of the 1024 canvas, scaled to 140 px -->
+  <g transform="translate(20 20) scale(0.1699) translate(-100 -100)">
+    <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#tile)" stroke="#334155" stroke-width="8"/>
+    <path d="M 350 640 L 300 795 Q 296 806 306 800 L 470 680 Z" fill="url(#bubble)"/>
+    <rect x="220" y="270" width="584" height="420" rx="110" fill="url(#bubble)"/>
+    <g fill="#fff">
+      <rect x="300" y="435" width="28" height="70" rx="14"/>
+      <rect x="346" y="395" width="28" height="150" rx="14"/>
+      <rect x="392" y="365" width="28" height="210" rx="14"/>
+      <rect x="438" y="410" width="28" height="120" rx="14"/>
+      <rect x="510" y="390" width="214" height="30" rx="15"/>
+      <rect x="510" y="455" width="170" height="30" rx="15" fill-opacity="0.9"/>
+      <rect x="510" y="520" width="120" height="30" rx="15" fill-opacity="0.75"/>
+    </g>
+  </g>
+
+  <!-- Wordmark -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif">
+    <text x="190" y="104" font-size="76" font-weight="700" letter-spacing="-1.5" fill="#f3f4f6">Voice <tspan fill="url(#accent)">Dictation</tspan></text>
+    <text x="193" y="144" font-size="22" fill="#9ca3af">hold a key · speak · release · the text is at your cursor</text>
+  </g>
+</svg>
